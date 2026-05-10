@@ -16,17 +16,17 @@ particle-level observables, and parton-level observables.
 
 ## Repository Contents
 
-- `macros/reproduce_isr_plot.C`: C++ ROOT macro that can generate MC-like
-  toy fallback samples, analyze ISR ON/OFF pairs, and draw the original
-  slide-style ISR correction figure.
+- `macros/reproduce_isr_plot.C`: legacy C++ ROOT macro for the original
+  slide-style ISR correction figure.  It is not used for the current
+  real-generator production.
 - `src/real_isr_ntuple_producer.cc`: standalone real-generator ROOT ntuple
   producer.  It directly runs PYTHIA/PYTHIA+Vincia and converts Herwig/Sherpa
   HepMC streams into the same `Events` TTree schema.
 - `scripts/run_real_isr_production.sh`: real standalone generator production
   wrapper for PYTHIA 8.315, PYTHIA 8.315 (Vincia), Herwig 7.3.0, and Sherpa
   3.0.3.
-- `scripts/run_isr_production.sh`: production wrapper for full 20M-per-sample
-  generation or plot-only reruns from the older macro workflow.
+- `scripts/run_isr_production.sh`: legacy wrapper for plot-only reruns from
+  the older macro workflow.
 - `scripts/test_isr_macro.sh`: smoke test that generates tiny temporary samples,
   verifies ROOT tree entries, and checks plot creation.
 - `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
@@ -58,7 +58,7 @@ It contains eight ROOT files produced from real standalone generators:
 - ISR ON and ISR OFF for each configuration
 - `20,000` events per file in the validation refresh
 
-The old toy samples and the old 5M toy archive were removed from
+The old fallback samples and the old 5M archive were removed from
 `/data2/yjlee/ISRsample` to avoid confusion.
 
 ## Quick Start
