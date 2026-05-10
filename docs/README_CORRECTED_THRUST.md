@@ -36,3 +36,37 @@ This stale branch is a real issue, but it does not explain the large disagreemen
 with ALEPH. The remaining absolute thrust-spectrum disagreement is caused mainly
 by the fallback toy generator topology and requires a retuned toy model or real
 configured Pythia/Herwig/Sherpa production.
+
+## Hadron-only / no-photon check
+
+Updated: 2026-05-10 15:55 EDT
+
+The thrust algorithm has been checked against the local ALEPH agentic
+`THRUST::OPTIMAL` implementation and agrees at the `1e-7` level. A separate
+selection diagnostic was added in `macros/diagnose_hadron_no_photon_thrust.C` to
+test whether ordinary final-state photons explain the bad ALEPH thrust-spectrum
+agreement.
+
+Selections tested on 50k PYTHIA 8.317-equivalent ISR ON events:
+
+- all visible: neutrinos and flagged ISR photons excluded
+- no photons: all visible plus every PDG 22 photon excluded
+- hadron-only, no photons: neutrinos, flagged ISR photons, ordinary photons, and
+  leptons excluded; require at least 5 selected hadrons and `E_had > 20 GeV`
+
+Key result: removing photons changes the spectrum only modestly. For the
+PYTHIA-equivalent sample, the full-range mean absolute MC/ALEPH fractional
+difference improves from 6.53 to 6.13 with photons removed, and to 5.72 with the
+hadron-only/no-photon selection. The central `0.65<T<0.95` metric remains about
+2.2--2.3, so the dominant problem is still the fallback toy generator topology,
+not the thrust algorithm or photon inclusion alone.
+
+New outputs:
+
+```text
+thrust_selection_mode_diagnostic_pythia.png
+aleph_isr_on_thrust_comparison_hadron_no_photon.png
+isr_correction_hadron_no_photon.png
+thrust_hadron_no_photon_metrics.csv
+thrust_hadron_no_photon_bins.csv
+```
