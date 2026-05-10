@@ -17,13 +17,23 @@ particle-level observables, and parton-level observables.
 ## Repository Contents
 
 - `macros/reproduce_isr_plot.C`: C++ ROOT macro that can generate MC-like
-  samples, analyze ISR ON/OFF pairs, and draw the ISR correction figure.
+  toy fallback samples, analyze ISR ON/OFF pairs, and draw the original
+  slide-style ISR correction figure.
+- `src/real_isr_ntuple_producer.cc`: standalone real-generator ROOT ntuple
+  producer.  It directly runs PYTHIA/PYTHIA+Vincia and converts Herwig/Sherpa
+  HepMC streams into the same `Events` TTree schema.
+- `scripts/run_real_isr_production.sh`: real standalone generator production
+  wrapper for PYTHIA 8.315, PYTHIA 8.315 (Vincia), Herwig 7.3.0, and Sherpa
+  3.0.3.
 - `scripts/run_isr_production.sh`: production wrapper for full 20M-per-sample
-  generation or plot-only reruns from existing samples.
+  generation or plot-only reruns from the older macro workflow.
 - `scripts/test_isr_macro.sh`: smoke test that generates tiny temporary samples,
   verifies ROOT tree entries, and checks plot creation.
+- `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
 - `docs/MC_GENERATION.md`: detailed production note, model status, links, sample
   sizes, and 20M statistics.
+- `docs/REAL_GENERATOR_PRODUCTION.md`: current real-generator production status,
+  version references, ISR ON/OFF definitions, sample statistics, and output paths.
 - `docs/TREE_SCHEMA.md`: event and particle branch definitions.
 - `docs/VALIDATION.md`: validation commands and checked production numbers.
 - `results/`: small reference PNG/PDF outputs from the 20M production.
@@ -32,24 +42,24 @@ The multi-GB ROOT ntuples are intentionally not committed to git.
 
 ## Current Production
 
-The completed 20M production is stored on the analysis machine at:
+The current real-generator validation production is stored on the analysis
+machine at:
 
 ```text
-/data2/yjlee/ISRsample
+/data2/yjlee/ISRsample/real_20260510
 ```
 
-It contains eight ROOT files:
+It contains eight ROOT files produced from real standalone generators:
 
-- four generator-equivalent configurations
+- PYTHIA 8.315
+- PYTHIA 8.315 with Vincia
+- Herwig 7.3.0
+- Sherpa 3.0.3
 - ISR ON and ISR OFF for each configuration
-- `20,000,000` events per file
-- `160,000,000` total generated events
+- `20,000` events per file in the validation refresh
 
-The previous 5M production is archived at:
-
-```text
-/data2/yjlee/ISRsample/5M_20260509
-```
+The old toy samples and the old 5M toy archive were removed from
+`/data2/yjlee/ISRsample` to avoid confusion.
 
 ## Quick Start
 
@@ -59,54 +69,59 @@ Run the checked-in smoke test:
 ./scripts/test_isr_macro.sh
 ```
 
-Run a plot-only update from existing 20M samples:
+Build the real-generator producer:
 
 ```bash
-REGENERATE=false ./scripts/run_isr_production.sh
+./scripts/build_real_isr_tools.sh
 ```
 
-Run the full 20M production:
+Run the real-generator validation production:
 
 ```bash
-EVENTS=20000000 OUTPUT_DIR=/data2/yjlee/ISRsample REGENERATE=true ./scripts/run_isr_production.sh
+EVENTS=20000 OUTDIR=/data2/yjlee/ISRsample/real_20260510 TARGETS=all FORCE=1 ./scripts/run_real_isr_production.sh
 ```
 
-The bare ROOT command also works from the repository root:
+Regenerate the real-generator plots:
+
+```bash
+root -l -b -q macros/plot_real_isr_results.C
+```
+
+The old slide macro still runs with:
 
 ```bash
 root -l -b -q macros/reproduce_isr_plot.C
 ```
 
-By default, the macro writes samples and plots to `/data2/yjlee/ISRsample`.
-
 ## Generator Status
 
-The macro can use Pythia8 only when a complete, linkable Pythia8 installation is
-available.  On the machine used for this production, `pythia8-config --version`
-reported `8.315`, but `pythia8-config --cxxflags --libs` failed.  The 20M files
-therefore use the macro's labeled fallback toy `e+e-` `Z`-pole ISR generator.
+The current files are not toy fallback samples.  They were produced from real
+standalone generator paths:
 
-The labels `Herwig 7.1.5`, `PYTHIA 8.317`, `Sherpa 2.2.6`, and
-`PYTHIA 8.317 (Vincia)` are generator-equivalent model configurations for
-correction-shape comparison.  They are not claims that external Herwig, PYTHIA,
-Sherpa, or Vincia executables produced these files.
+- Direct PYTHIA 8.315 C++ generation, linked against `/usr/lib/libpythia8.so`.
+- Direct PYTHIA 8.315 plus `Pythia8::Vincia`.
+- Standalone Herwig 7.3.0 writing HepMC through a FIFO into the ROOT converter.
+- Standalone Sherpa 3.0.3 writing HepMC through a FIFO into the ROOT converter.
+
+See `docs/REAL_GENERATOR_PRODUCTION.md` for the exact ISR ON/OFF switches and
+version references.
 
 ## Output Files
 
 The production writes:
 
 ```text
-mc_Herwig715_ISR_ON.root
-mc_Herwig715_ISR_OFF.root
-mc_Pythia8317_ISR_ON.root
-mc_Pythia8317_ISR_OFF.root
-mc_Sherpa226_ISR_ON.root
-mc_Sherpa226_ISR_OFF.root
-mc_Pythia8317_Vincia_ISR_ON.root
-mc_Pythia8317_Vincia_ISR_OFF.root
-isr_correction_studies_reproduction.png
-isr_correction_studies_reproduction.pdf
+mc_Herwig730_ISR_ON.root
+mc_Herwig730_ISR_OFF.root
+mc_Pythia8315_ISR_ON.root
+mc_Pythia8315_ISR_OFF.root
+mc_Sherpa303_ISR_ON.root
+mc_Sherpa303_ISR_OFF.root
+mc_Pythia8315_Vincia_ISR_ON.root
+mc_Pythia8315_Vincia_ISR_OFF.root
+results/real_isr_correction_double_ratio.png
+results/real_isr_on_thrust_vs_aleph.png
+results/real_isr_photon_energy_theta_spectra.png
 ```
 
 Each ROOT file contains a `TTree` named `Events`.
-
