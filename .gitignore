@@ -1,0 +1,14 @@
+# Large generated ntuples and transient ROOT outputs
+*.root
+*.log
+*.aux
+*.out
+*.toc
+
+# Local smoke-test directories
+isrstudy_smoke_*/
+
+# Keep the checked-in reference plot artifacts under results/
+!results/*.png
+!results/*.pdf
+
