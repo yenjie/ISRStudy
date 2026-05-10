@@ -190,63 +190,69 @@ std::vector<TLorentzVector> selectVisibleParticles(
 
 TVector3 computeThrustAxis(const std::vector<TLorentzVector>& selectedParticles, double* thrustValue = 0)
 {
-    double denom = 0.0;
-    std::vector<std::pair<double, TVector3> > momenta;
+    double pSum = 0.0;
+    std::vector<TVector3> momenta;
     momenta.reserve(selectedParticles.size());
     for (size_t i = 0; i < selectedParticles.size(); ++i) {
         const TVector3 p = selectedParticles[i].Vect();
         const double mag = p.Mag();
         if (mag <= 1e-9) continue;
-        denom += mag;
-        momenta.push_back(std::make_pair(mag, p));
+        pSum += mag;
+        momenta.push_back(p);
     }
 
-    if (denom <= 1e-9 || momenta.empty()) {
+    if (pSum <= 1e-9 || momenta.empty()) {
         if (thrustValue) *thrustValue = 0.0;
         return TVector3(0.0, 0.0, 1.0);
     }
-    if (momenta.size() == 1) {
-        if (thrustValue) *thrustValue = 1.0;
-        return momenta[0].second.Unit();
-    }
 
-    std::sort(momenta.begin(), momenta.end(),
-              [](const std::pair<double, TVector3>& a, const std::pair<double, TVector3>& b) {
-                  return a.first > b.first;
-              });
+    TVector3 bestVector(0.0, 0.0, 0.0);
+    double bestMag2 = -1.0;
+    const size_t n = momenta.size();
 
-    std::vector<TVector3> candidates;
-    const size_t nAxisParticles = std::min<size_t>(momenta.size(), 12);
-    for (size_t i = 0; i < nAxisParticles; ++i) {
-        candidates.push_back(momenta[i].second.Unit());
-    }
-
-    const size_t nPairParticles = std::min<size_t>(momenta.size(), 8);
-    for (size_t i = 0; i < nPairParticles; ++i) {
-        for (size_t j = i + 1; j < nPairParticles; ++j) {
-            TVector3 a = momenta[i].second + momenta[j].second;
-            TVector3 b = momenta[i].second - momenta[j].second;
-            if (a.Mag() > 1e-9) candidates.push_back(a.Unit());
-            if (b.Mag() > 1e-9) candidates.push_back(b.Unit());
+    if (n <= 3) {
+        const unsigned int nMasks = 1u << n;
+        for (unsigned int mask = 0; mask < nMasks; ++mask) {
+            TVector3 sum(0.0, 0.0, 0.0);
+            for (size_t i = 0; i < n; ++i) {
+                sum += ((mask >> i) & 1u) ? momenta[i] : -momenta[i];
+            }
+            const double mag2 = sum.Mag2();
+            if (mag2 > bestMag2) {
+                bestMag2 = mag2;
+                bestVector = sum;
+            }
+        }
+    } else {
+        for (size_t i = 1; i < n; ++i) {
+            for (size_t j = 0; j < i; ++j) {
+                const TVector3 cross = momenta[i].Cross(momenta[j]);
+                TVector3 ptot(0.0, 0.0, 0.0);
+                for (size_t k = 0; k < n; ++k) {
+                    if (k == i || k == j) continue;
+                    ptot += (momenta[k].Dot(cross) > 0.0) ? momenta[k] : -momenta[k];
+                }
+                const TVector3 candidates[4] = {
+                    ptot - momenta[j] - momenta[i],
+                    ptot - momenta[j] + momenta[i],
+                    ptot + momenta[j] - momenta[i],
+                    ptot + momenta[j] + momenta[i]
+                };
+                for (int c = 0; c < 4; ++c) {
+                    const double mag2 = candidates[c].Mag2();
+                    if (mag2 > bestMag2) {
+                        bestMag2 = mag2;
+                        bestVector = candidates[c];
+                    }
+                }
+            }
         }
     }
 
-    double best = -1.0;
-    TVector3 bestAxis = momenta[0].second.Unit();
-    for (size_t c = 0; c < candidates.size(); ++c) {
-        const TVector3 axis = candidates[c].Unit();
-        double numerator = 0.0;
-        for (size_t i = 0; i < momenta.size(); ++i) numerator += std::abs(momenta[i].second.Dot(axis));
-        const double t = numerator / denom;
-        if (t > best) {
-            best = t;
-            bestAxis = axis;
-        }
-    }
-
-    best = std::min(1.0, std::max(0.0, best));
+    const double best = std::min(1.0, std::max(0.0, bestVector.Mag() / pSum));
     if (thrustValue) *thrustValue = best;
-    return bestAxis.Unit();
+    if (bestVector.Mag() <= 1e-12) return momenta[0].Unit();
+    return bestVector.Unit();
 }
 
 double computeThrust(const std::vector<TLorentzVector>& selectedParticles)
