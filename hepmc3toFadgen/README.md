@@ -113,6 +113,25 @@ SKELEANA_FADGEN_ARGS="-i /path/to/fadgen -o sherpa_fadgen.root" \
 ./scripts/run_skeleana_validation.sh
 ```
 
+For the real DELPHI external-generator chain on LXPLUS, use:
+
+```bash
+LOCAL_FADGEN=/raid5/data/yjlee/ISR/hepmc3toFadgen_smoke/fad/sherpa_OFF.fadgen \
+./scripts/run_lxplus_skelana_test.sh
+```
+
+This requires an already authenticated CERN SSH ControlMaster (`ssh -MNf
+lxplus`).  The script copies the candidate FADGEN file to LXPLUS, sources
+`/cvmfs/delphi.cern.ch/setup.sh`, runs `runsim -gext input.fadgen`, and then
+runs the DELPHI `dump` skelana example on the resulting `simana.sdst` or
+`simana.xsdst`.
+
+Validation status as of setup: the LXPLUS run was not completed because no
+authenticated CERN SSH master connection was available in the agent session.
+The current converter output is `FADGEN_EXCHANGE_ASCII_V1`; it is not yet
+confirmed to be native DELSIM unformatted FADGEN.  The LXPLUS test above is the
+decisive check.
+
 ## FADGEN Exchange Format
 
 Each event block contains:
