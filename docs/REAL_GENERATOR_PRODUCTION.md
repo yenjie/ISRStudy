@@ -1,7 +1,7 @@
 # Real-generator ISR production status
 
-Date: 2026-05-10  
-Latest validation directory: `/data2/yjlee/ISRsample/real_100k_20260511`  
+Date: 2026-05-11  
+Latest production directory: `/data2/yjlee/ISRsample/real_3M_20260511`  
 Previous 20k directory: `/data2/yjlee/ISRsample/real_20260510`
 
 ## Goal
@@ -10,10 +10,10 @@ Replace the previous toy fallback samples with reusable ROOT ntuples produced fr
 
 ## Important cleanup
 
-All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/yjlee/ISRsample`.  The old `5M_20260509` toy archive was also removed.  The current real-generator validation samples live under:
+All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/yjlee/ISRsample`.  The old `5M_20260509` toy archive was also removed.  The current real-generator production samples live under:
 
 ```text
-/data2/yjlee/ISRsample/real_100k_20260511/
+/data2/yjlee/ISRsample/real_3M_20260511/
 ```
 
 ## Real generators and references
@@ -97,10 +97,16 @@ change:
 ## Production command
 
 ```bash
-EVENTS=100000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_100k_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
+cd /raid5/root/root-v6.34.04/root/bin
+. ./thisroot.sh
+cd /raid5/data/yjlee/ISR
+EVENTS=3000000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
 ```
 
-The event count is intentionally configurable.  The 100k/event-mode sample is a validation refresh; larger 2M, 5M, or 20M production should use the same ISR definitions after accepting the generator-specific ISR settings.  The wrapper name still contains `10worker`, but the current invocation honors `MAX_WORKERS=15`.  With the updated requirements, `all` includes the Sherpa YFS alternative in addition to the nominal Sherpa `PDFESherpa` ISR sample.
+The event count is intentionally configurable.  The wrapper name still contains
+`10worker`, but the current invocation honors `MAX_WORKERS=15`.  With the
+updated requirements, `all` includes the Sherpa YFS alternative in addition to
+the nominal Sherpa `PDFESherpa` ISR sample.
 
 ## Produced ROOT ntuples
 
@@ -117,6 +123,60 @@ mc_Sherpa303_ISR_YFS.root
 mc_Pythia8315_Vincia_ISR_OFF.root
 mc_Pythia8315_Vincia_ISR_ON.root
 ```
+
+The 2026-05-11 3M production initially exposed a Herwig-only issue: the Herwig
+HepMC card had `set /Herwig/Analysis/HepMC:PrintEvent 1000000`, so the first
+large Herwig files stopped at 1M converted `Events` entries.  The card now uses
+`@N_EVENTS@`, and `scripts/run_real_isr_production.sh` substitutes the requested
+`EVENTS` value before running Herwig.
+
+## 3M sample validation
+
+All current ROOT ntuples in `/data2/yjlee/ISRsample/real_3M_20260511` contain
+exactly 3,000,000 entries in the `Events` TTree:
+
+```text
+mc_Herwig730_ISR_OFF.root             3000000
+mc_Herwig730_QEDshower.root          3000000
+mc_Pythia8315_ISR_OFF.root           3000000
+mc_Pythia8315_ISR_ON.root            3000000
+mc_Pythia8315_Vincia_ISR_OFF.root    3000000
+mc_Pythia8315_Vincia_ISR_ON.root     3000000
+mc_Sherpa303_ISR_OFF.root            3000000
+mc_Sherpa303_ISR_ON.root             3000000
+mc_Sherpa303_ISR_YFS.root            3000000
+```
+
+The refreshed plots are in:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/results
+```
+
+The full plotting macro wrote all figures and then ROOT crashed during
+end-of-process cleanup before completing the CSV.  The CSV was regenerated with
+the standalone ROOT macro `write_real_isr_stats.C`.
+
+Summary file:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/results/real_generator_sample_statistics.csv
+```
+
+Key means from the 3M production:
+
+| sample | mode | entries | mean thrust | mean visible energy [GeV] | mean ISR photons | mean ISR photon energy [GeV] |
+|---|---:|---:|---:|---:|---:|---:|
+| Herwig 7.3.0 QED shower | OFF | 3000000 | 0.94003 | 89.66 | 0.000 | 0.000 |
+| Herwig 7.3.0 QED shower | QEDshower | 3000000 | 0.94040 | 89.14 | 0.545 | 0.518 |
+| PYTHIA 8.315 | OFF | 3000000 | 0.93197 | 89.48 | 0.000 | 0.000 |
+| PYTHIA 8.315 | ISR ON | 3000000 | 0.93163 | 89.34 | 2.730 | 0.202 |
+| Sherpa 3.0.3 PDFESherpa | OFF | 3000000 | 0.93395 | 89.61 | 0.000 | 0.000 |
+| Sherpa 3.0.3 PDFESherpa | ISR ON | 3000000 | 0.93598 | 66.83 | 17.826 | 22.785 |
+| Sherpa 3.0.3 YFS | OFF | 3000000 | 0.93395 | 89.61 | 0.000 | 0.000 |
+| Sherpa 3.0.3 YFS | ISR ON | 3000000 | 0.93593 | 66.78 | 17.932 | 22.836 |
+| PYTHIA 8.315 (Vincia) | OFF | 3000000 | 0.93277 | 89.52 | 0.000 | 0.000 |
+| PYTHIA 8.315 (Vincia) | ISR ON | 3000000 | 0.93265 | 89.32 | 2.003 | 0.202 |
 
 ## Superseded 100k sample statistics
 

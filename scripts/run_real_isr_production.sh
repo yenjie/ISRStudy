@@ -85,6 +85,7 @@ run_herwig() {
   sed \
     -e "s|@EECOLLIDER@|$HERWIG_EECOLLIDER|g" \
     -e "s|@ENERGY@|$ECM|g" \
+    -e "s|@N_EVENTS@|$EVENTS|g" \
     -e "s|@RUN_NAME@|$run_name|g" \
     "$template" > "$card"
   cat > "$setup" <<EOF_SETUP

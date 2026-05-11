@@ -449,6 +449,7 @@ void plot_real_isr_results()
         {"Herwig 7.3.0 QED shower", "Herwig730_QEDshower", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_QEDshower.root"), "QEDshower", kBlue + 2, 20, -0.0015},
         {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), "ISR ON", kRed + 1, 20, -0.0005},
         {"Sherpa 3.0.3 PDFESherpa", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), "ISR ON (PDFESherpa)", kMagenta + 2, 23, 0.0005},
+        {"Sherpa 3.0.3 YFS", "Sherpa303_YFS", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_YFS.root"), "ISR ON (YFS)", kOrange + 7, 34, 0.0010},
         {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), "ISR ON", kCyan + 2, 22, 0.0015}
     };
 

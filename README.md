@@ -31,6 +31,8 @@ particle-level observables, and parton-level observables.
   the older macro workflow.
 - `scripts/test_isr_macro.sh`: smoke test that generates tiny temporary samples,
   verifies ROOT tree entries, and checks plot creation.
+- `macros/write_real_isr_stats.C`: standalone ROOT statistics writer for the
+  scalar sample-summary CSV.
 - `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
 - `docs/MC_GENERATION.md`: detailed production note, model status, links, sample
   sizes, and 20M statistics.
@@ -44,24 +46,21 @@ The multi-GB ROOT ntuples are intentionally not committed to git.
 
 ## Current Production
 
-The latest generated 100k validation production is stored on the analysis
-machine at:
+The current 3M real-generator production is stored on the analysis machine at:
 
 ```text
-/data2/yjlee/ISRsample/real_100k_20260511
+/data2/yjlee/ISRsample/real_3M_20260511
 ```
 
-It contains eight ROOT files produced from real standalone generators:
+It contains nine ROOT files produced from real standalone generators:
 
 - PYTHIA 8.315
 - PYTHIA 8.315 with Vincia
-- Herwig 7.3.0
-- Sherpa 3.0.3
-- ISR ON and ISR OFF for each configuration
-- `100,000` events per file in the validation refresh
+- Herwig 7.3.0 baseline and QED-shower comparison
+- Sherpa 3.0.3 baseline, PDFESherpa ISR, and YFS ISR alternative
+- `3,000,000` events per generated file
 
-Those 100k files were produced before the generator-setting requirements were
-updated.  The code and cards now define the next production as:
+The generator-setting definitions are:
 
 - PYTHIA/PYTHIA-Vincia: `PDF:lepton`, `PartonLevel:ISR`, and
   `SpaceShower:QEDshowerByL` are all toggled together; `gm/Z -> q qbar` is
@@ -71,7 +70,8 @@ updated.  The code and cards now define the next production as:
   `MEee2gZ2qq`, `91.1876*GeV`, and `Interactions QCD`; the comparison sample
   is explicitly labeled `QEDshower` and uses the installed Herwig spelling
   `Interactions QEDQCD` for QCD+QED showering.  The literal `QCDandQED` token
-  is rejected by the installed Herwig binary.
+  is rejected by the installed Herwig binary.  The HepMC `PrintEvent` setting
+  follows the requested `EVENTS` value, avoiding the earlier 1M cap.
 - Sherpa 3.0.3: nominal ISR uses `PDF_LIBRARY: PDFESherpa`; YFS ISR is a
   separately labeled alternative and is not mixed with `PDFESherpa`.
 
@@ -92,16 +92,24 @@ Build the real-generator producer:
 ./scripts/build_real_isr_tools.sh
 ```
 
-Run the real-generator validation production:
+Load the ROOT 6.34.04 environment used for production:
 
 ```bash
-EVENTS=100000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_100k_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
+cd /raid5/root/root-v6.34.04/root/bin
+. ./thisroot.sh
+cd /raid5/data/yjlee/ISR/ISRStudy
+```
+
+Run the 3M real-generator production:
+
+```bash
+EVENTS=3000000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
 ```
 
 Regenerate the real-generator plots:
 
 ```bash
-ISR_REAL_DIR=/data2/yjlee/ISRsample/real_100k_20260511 root -l -b -q macros/plot_real_isr_results.C
+ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 root -l -b -q macros/plot_real_isr_results.C
 ```
 
 The old slide macro still runs with:
@@ -128,17 +136,19 @@ version references.
 The production writes:
 
 ```text
-mc_Herwig730_ISR_ON.root
 mc_Herwig730_ISR_OFF.root
+mc_Herwig730_QEDshower.root
 mc_Pythia8315_ISR_ON.root
 mc_Pythia8315_ISR_OFF.root
 mc_Sherpa303_ISR_ON.root
 mc_Sherpa303_ISR_OFF.root
+mc_Sherpa303_ISR_YFS.root
 mc_Pythia8315_Vincia_ISR_ON.root
 mc_Pythia8315_Vincia_ISR_OFF.root
 results/real_isr_correction_double_ratio.png
 results/real_isr_on_thrust_vs_aleph.png
 results/real_isr_photon_energy_theta_spectra.png
+results/real_generator_sample_statistics.csv
 results/isr_correction_studies_reproduction.png
 ```
 
