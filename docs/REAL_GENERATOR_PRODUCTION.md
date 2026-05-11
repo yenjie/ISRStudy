@@ -167,8 +167,8 @@ The existing plots were made by reading the superseded 100k ROOT ntuples:
 Status from the 100k validation update:
 
 - The 100k ROOT ntuples and refreshed plots were produced with ROOT 6.34.04 from `/raid5/root/root-v6.34.04/root/bin/thisroot.sh`.
-- The Overleaf analysis note was updated and pushed successfully to `https://git.overleaf.com/69ff6df5f5dd70ea72cedce4` as commit `6ea6cdb`.
-- The `ISRStudy` code/documentation/results snapshot was committed locally as `c2801bf` with message `Add 100k real ISR validation updates`.
+- The Overleaf analysis note was updated and pushed successfully to `https://git.overleaf.com/69ff6df5f5dd70ea72cedce4`; the latest pushed markdown requirements update is commit `b8feff0`.
+- The latest local `ISRStudy` code/documentation/results commit is `c9a2868` with message `Apply generator-specific ISR settings`.
 - Pushing `ISRStudy` to GitHub is blocked because the configured remote is `git@github.com:yenjie/ISRStudy.git` and GitHub returns `Repository not found`.
 - Once the correct GitHub remote or access permission is available, push the local commit with:
 
