@@ -226,11 +226,11 @@ An additional derived-ntuple pass was added to test whether Sherpa endpoint
 behavior is driven by low visible mass, a longitudinal boost, or unusually
 large explicit ISR photon activity.  The pass does not modify the original
 generator ROOT files.  It reads the stored particle vectors and writes one
-compact ROOT file per ISR ON/OFF sample.  The current all-final 500k quick
-check is stored under:
+compact ROOT file per ISR ON/OFF sample.  The current all-final 3M diagnostic
+is stored under:
 
 ```text
-/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k
+/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_3M
 ```
 
 Each derived `EndpointDiagnostics` tree stores:
@@ -263,7 +263,7 @@ sum_ISR_photon_energy
 event_weight
 ```
 
-For the current nominal quick check, `T_lab_allFinal_including_ISR_photons`
+For the current nominal 3M diagnostic, `T_lab_allFinal_including_ISR_photons`
 uses all stable final-state particles, including neutrinos and tagged ISR
 photons.  The visible-particle variants keep the earlier ALEPH-style
 cross-checks that exclude neutrinos and either remove or include tagged ISR
@@ -273,7 +273,7 @@ frame before recomputing thrust.
 The 2D correlation plots are written to:
 
 ```text
-/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/endpoint_diagnostics
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_3M/endpoint_diagnostics
 ```
 
 The same diagnostic producer was also run on the ISR OFF samples to compare
@@ -290,16 +290,16 @@ N: T_lab_allFinal_including_ISR_photons
 Those `C_ISR(T)` plots and bin-summary CSV files are written to:
 
 ```text
-/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/thrust_definition_corrections
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_3M/thrust_definition_corrections
 ```
 
-The 500k all-final quick-check endpoint summary is definition-dependent.  In
+The 3M all-final endpoint summary is definition-dependent.  In
 the last ALEPH thrust bin, `0.99 < T < 1.00`, Sherpa PDFESherpa has
-`C_ISR = 1.158 +/- 0.017` for definition N and
-`C_ISR = 1.161 +/- 0.017` for definition B, where explicit tagged ISR photons
+`C_ISR = 1.150 +/- 0.007` for definition N and
+`C_ISR = 1.149 +/- 0.007` for definition B, where explicit tagged ISR photons
 are kept in the thrust input.  The same sample gives
-`C_ISR = 0.492 +/- 0.006` for definition A and
-`C_ISR = 0.495 +/- 0.006` for definition C, where tagged ISR photons are
+`C_ISR = 0.492 +/- 0.002` for definition A and
+`C_ISR = 0.494 +/- 0.002` for definition C, where tagged ISR photons are
 removed from the visible-particle thrust input.  The endpoint sign therefore
 changes with the photon/neutrino convention:
 

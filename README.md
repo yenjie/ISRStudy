@@ -124,29 +124,29 @@ The same runner can produce the ISR OFF derived trees needed for correction
 ratios:
 
 ```bash
-REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k SAMPLE_SET=OFF MAX_WORKERS=4 ./scripts/run_endpoint_diagnostics.sh
-ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 ISR_ENDPOINT_DIAG_DIR=/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k root -l -b -q macros/plot_thrust_definition_corrections.C
+REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_3M SAMPLE_SET=OFF MAX_WORKERS=4 ./scripts/run_endpoint_diagnostics.sh
+ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 ISR_ENDPOINT_DIAG_DIR=/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_3M root -l -b -q macros/plot_thrust_definition_corrections.C
 ```
 
 The diagnostic trees are written to:
 
 ```text
-/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k
+/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_3M
 ```
 
 The endpoint correlation figures and summary tables are written to:
 
 ```text
-/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/endpoint_diagnostics
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_3M/endpoint_diagnostics
 ```
 
 The thrust-definition `C_ISR(T)` comparison figures are written to:
 
 ```text
-/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/thrust_definition_corrections
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_3M/thrust_definition_corrections
 ```
 
-For the current nominal quick check, `T_lab_allFinal_including_ISR_photons`
+For the current nominal 3M diagnostic, `T_lab_allFinal_including_ISR_photons`
 is computed from all stable final-state particles, including neutrinos and
 tagged ISR photons.  The diagnostic tree also stores the visible-particle
 cross-checks: `T_lab_excluding_ISR_photons`, `T_lab_including_ISR_photons`,

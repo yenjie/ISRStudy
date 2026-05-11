@@ -62,7 +62,7 @@ visibleEtaMax = 1.74;
 
 Visible energy is the scalar energy sum of final-state particles within
 `|eta| < 1.74`, excluding neutrinos and including photons.  The current
-nominal thrust quick check uses all stable final-state particles with no
+nominal thrust diagnostic uses all stable final-state particles with no
 `eta` restriction, including neutrinos and tagged ISR photons.  ISR photons
 are stored in the event record so the visible-particle cross-checks can remove
 or include them explicitly.
