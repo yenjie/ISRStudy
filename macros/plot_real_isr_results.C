@@ -43,8 +43,8 @@ struct AlephPoint {
     double err;
 };
 
-std::string gRealDir = "/data2/yjlee/ISRsample/real_20260510";
-std::string gOutDir = "/data2/yjlee/ISRsample/real_20260510/results";
+std::string gRealDir = "/data2/yjlee/ISRsample/real_3M_20260511";
+std::string gOutDir = "/data2/yjlee/ISRsample/real_3M_20260511/results";
 
 std::string joinPath(const std::string& dir, const std::string& name)
 {

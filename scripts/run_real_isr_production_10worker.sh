@@ -4,11 +4,11 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO_ROOT"
 
-EVENTS="${EVENTS:-2000000}"
+EVENTS="${EVENTS:-3000000}"
 ECM="${ECM:-91.1876}"
-OUTDIR="${OUTDIR:-/data2/yjlee/ISRsample/real_2M_20260511}"
+OUTDIR="${OUTDIR:-/data2/yjlee/ISRsample/real_3M_20260511}"
 WORKDIR="${WORKDIR:-$OUTDIR/work}"
-MAX_WORKERS="${MAX_WORKERS:-10}"
+MAX_WORKERS="${MAX_WORKERS:-15}"
 FORCE="${FORCE:-0}"
 
 mkdir -p "$OUTDIR" "$WORKDIR"
@@ -67,8 +67,8 @@ for pid in "${pids[@]}"; do
 done
 
 if (( status != 0 )); then
-  echo "[error] one or more 2M production tasks failed" >&2
+  echo "[error] one or more real-generator production tasks failed" >&2
   exit "$status"
 fi
 
-echo "[done] 10-worker capped real ISR production in $OUTDIR"
+echo "[done] ${MAX_WORKERS}-worker capped real ISR production in $OUTDIR"

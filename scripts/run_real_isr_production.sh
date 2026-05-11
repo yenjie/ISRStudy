@@ -6,7 +6,11 @@ cd "$REPO_ROOT"
 
 EVENTS="${EVENTS:-100000}"
 ECM="${ECM:-91.1876}"
-OUTDIR="${OUTDIR:-/data2/yjlee/ISRsample/real_generators_20260510}"
+OUTDIR="${OUTDIR:-}"
+if [[ -z "$OUTDIR" ]]; then
+  echo "Set OUTDIR explicitly, for example OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511" >&2
+  exit 2
+fi
 WORKDIR="${WORKDIR:-$OUTDIR/work}"
 FORCE="${FORCE:-0}"
 TARGETS="${TARGETS:-pythia,pythia-vincia,herwig,sherpa}"

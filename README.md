@@ -16,9 +16,6 @@ particle-level observables, and parton-level observables.
 
 ## Repository Contents
 
-- `macros/reproduce_isr_plot.C`: legacy C++ ROOT macro for the original
-  slide-style ISR correction figure.  It is not used for the current
-  real-generator production.
 - `src/real_isr_ntuple_producer.cc`: standalone real-generator ROOT ntuple
   producer.  It directly runs PYTHIA/PYTHIA+Vincia and converts Herwig/Sherpa
   HepMC streams into the same `Events` TTree schema.
@@ -26,23 +23,20 @@ particle-level observables, and parton-level observables.
   wrapper for PYTHIA 8.315, PYTHIA 8.315 (Vincia), Herwig 7.3.0, and Sherpa
   3.0.3.
 - `scripts/run_real_isr_production_10worker.sh`: worker-capped launcher used
-  for the 100k validation and larger parallel productions.
-- `scripts/run_isr_production.sh`: legacy wrapper for plot-only reruns from
-  the older macro workflow.
-- `scripts/test_isr_macro.sh`: smoke test that generates tiny temporary samples,
-  verifies ROOT tree entries, and checks plot creation.
+  for the 3M parallel production.
+- `macros/plot_real_isr_results.C`: real-generator plotting macro for ISR
+  corrections, ALEPH thrust comparisons, ratio panels, ISR photons, and visible
+  energy.
 - `macros/write_real_isr_stats.C`: standalone ROOT statistics writer for the
   scalar sample-summary CSV.
 - `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
-- `docs/MC_GENERATION.md`: detailed production note, model status, links, sample
-  sizes, and 20M statistics.
 - `docs/REAL_GENERATOR_PRODUCTION.md`: current real-generator production status,
   version references, ISR ON/OFF definitions, sample statistics, and output paths.
 - `docs/TREE_SCHEMA.md`: event and particle branch definitions.
-- `docs/VALIDATION.md`: validation commands and checked production numbers.
-- `results/`: small reference PNG/PDF outputs from the 20M production.
 
-The multi-GB ROOT ntuples are intentionally not committed to git.
+The multi-GB ROOT ntuples and derived plot files are intentionally not committed
+to git.  The current outputs live under `/data2/yjlee/ISRsample/real_3M_20260511`
+and are copied to Overleaf when needed.
 
 ## Current Production
 
@@ -78,13 +72,14 @@ The generator-setting definitions are:
 The old fallback samples and the old 5M archive were removed from
 `/data2/yjlee/ISRsample` to avoid confusion.
 
+Audit caveat for the existing 3M ROOT files: the current plots and CSV recompute
+visible energy from particle vectors with the `|eta| < 1.74` definition.  The
+stored scalar `visibleEnergy` branch in those already-produced files predates
+that definition, and the Sherpa `weight` branch contains HepMC bookkeeping
+weights that are not used by the current unweighted plots.  The producer has
+been patched for future HepMC conversions to write `weight = 1.0`.
+
 ## Quick Start
-
-Run the checked-in smoke test:
-
-```bash
-./scripts/test_isr_macro.sh
-```
 
 Build the real-generator producer:
 
@@ -100,7 +95,7 @@ cd /raid5/root/root-v6.34.04/root/bin
 cd /raid5/data/yjlee/ISR/ISRStudy
 ```
 
-Run the 3M real-generator production:
+Run or reuse the 3M real-generator production:
 
 ```bash
 EVENTS=3000000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
@@ -117,12 +112,6 @@ panels:
 
 ```bash
 ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 root -l -b -q -e 'gROOT->LoadMacro("macros/plot_real_isr_results.C"); plot_real_aleph_ratio_figures();'
-```
-
-The old slide macro still runs with:
-
-```bash
-root -l -b -q macros/reproduce_isr_plot.C
 ```
 
 ## Generator Status

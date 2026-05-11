@@ -2,7 +2,6 @@
 
 Date: 2026-05-11  
 Latest production directory: `/data2/yjlee/ISRsample/real_3M_20260511`  
-Previous 20k directory: `/data2/yjlee/ISRsample/real_20260510`
 
 ## Goal
 
@@ -15,6 +14,12 @@ All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/
 ```text
 /data2/yjlee/ISRsample/real_3M_20260511/
 ```
+
+The checked-in `ISRStudy` repository no longer tracks toy-derived plots, old
+100k/20k result snapshots, or legacy macros that used the Herwig715,
+Pythia8317, and Sherpa226 toy file names.  The plotting macro defaults to the
+3M directory above, and the low-level production wrapper now requires an
+explicit `OUTDIR` instead of silently writing to an old default directory.
 
 ## Real generators and references
 
@@ -189,57 +194,33 @@ final-state non-neutrino particles within `|eta| < 1.74`, including photons:
 | PYTHIA 8.315 (Vincia) | OFF | 3000000 | 0.93277 | 82.16 | 0.000 | 0.000 |
 | PYTHIA 8.315 (Vincia) | ISR ON | 3000000 | 0.93265 | 81.96 | 2.003 | 0.202 |
 
-## Superseded 100k sample statistics
+## Branch-level audit notes
 
-The existing 100k files in `/data2/yjlee/ISRsample/real_100k_20260511` were
-generated before the requirements update in this note.  In particular, Herwig
-used a lepton-PDF restoration attempt and Sherpa nominal ISR used YFS.  Those
-outputs remain useful only as a historical validation snapshot; rerun production
-before using the plots or statistics as the current generator comparison.
-
-Summary file:
-
-```text
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_generator_sample_statistics.csv
-```
-
-Key means from that superseded 100k/event-mode validation set:
-
-| sample | ISR | entries | mean thrust | mean visible energy [GeV] | mean ISR photons | mean ISR photon energy [GeV] |
-|---|---:|---:|---:|---:|---:|---:|
-| Herwig 7.3.0 | OFF | 100000 | 0.93958 | 89.67 | 0.000 | 0.000 |
-| Herwig 7.3.0 | ON | 100000 | 0.94030 | 89.18 | 0.543 | 0.509 |
-| PYTHIA 8.315 | OFF | 100000 | 0.93162 | 89.49 | 0.000 | 0.000 |
-| PYTHIA 8.315 | ON | 100000 | 0.93173 | 89.36 | 2.733 | 0.206 |
-| Sherpa 3.0.3 | OFF | 100000 | 0.93394 | 89.63 | 0.000 | 0.000 |
-| Sherpa 3.0.3 | ON | 100000 | 0.93606 | 66.82 | 17.929 | 22.822 |
-| PYTHIA 8.315 (Vincia) | OFF | 100000 | 0.93267 | 89.52 | 0.000 | 0.000 |
-| PYTHIA 8.315 (Vincia) | ON | 100000 | 0.93245 | 89.33 | 2.003 | 0.206 |
-
-Sherpa YFS ISR was visibly much stronger than the PYTHIA and Herwig configurations in this superseded validation sample.  The updated nominal Sherpa ISR sample uses `PDFESherpa` instead, with YFS kept as a separately labeled alternative.
-
-## Superseded refreshed plots
-
-The existing plots were made by reading the superseded 100k ROOT ntuples:
-
-```text
-/data2/yjlee/ISRsample/real_100k_20260511/results/isr_correction_studies_reproduction.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_isr_correction_double_ratio.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_isr_on_thrust_vs_aleph.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_isr_photon_energy_theta_spectra.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Herwig730_ISR_ON_OFF.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Pythia8315_ISR_ON_OFF.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Sherpa303_ISR_ON_OFF.png
-/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Pythia8315_Vincia_ISR_ON_OFF.png
-```
+- The current figures and the CSV above recompute visible energy from the
+  particle vectors using final-state non-neutrinos within `|eta| < 1.74`,
+  including photons.  The existing 3M ROOT files were produced before that
+  acceptance-definition update, so their stored event-level `visibleEnergy`
+  branch still contains the production-time definition.  Use the recomputed
+  values in the current analysis code, or regenerate the samples with the
+  current producer before relying on the scalar `visibleEnergy` branch.
+- The existing Sherpa 3M files carry large HepMC generator bookkeeping weights
+  in the `weight` branch.  The current ISR correction, ALEPH comparison,
+  visible-energy, and photon plots use unweighted event counts.  The producer
+  has been patched so future HepMC conversions write `weight = 1.0` for these
+  event-shape samples.
+- A stored-vs-recomputed thrust spot check over the first 100 events in each
+  3M file exactly reproduced the `thrust` branch from the stored final-state
+  non-neutrino particles with tagged ISR photons excluded.  The thrust branch
+  itself is therefore consistent with the current thrust algorithm and
+  selection.
 
 ## Repository and Overleaf sync status
 
-Status from the 100k validation update:
-
-- The 100k ROOT ntuples and refreshed plots were produced with ROOT 6.34.04 from `/raid5/root/root-v6.34.04/root/bin/thisroot.sh`.
-- The Overleaf analysis note was updated and pushed successfully to `https://git.overleaf.com/69ff6df5f5dd70ea72cedce4`; the generator-requirements markdown update starts at commit `b8feff0`.
-- The local `ISRStudy` generator-setting implementation commit is `c9a2868` with message `Apply generator-specific ISR settings`; later status-only commits may also be present.
+- The 3M ROOT ntuples and refreshed plots were produced with ROOT 6.34.04 from
+  `/raid5/root/root-v6.34.04/root/bin/thisroot.sh`.
+- The Overleaf analysis note references only the current 3M result files.
+- A byte-for-byte check confirmed that the Overleaf result files match
+  `/data2/yjlee/ISRsample/real_3M_20260511/results`.
 - Pushing `ISRStudy` to GitHub is blocked because the configured remote is `git@github.com:yenjie/ISRStudy.git` and GitHub returns `Repository not found`.
 - Once the correct GitHub remote or access permission is available, push the local commit with:
 
@@ -253,4 +234,4 @@ git -C /raid5/data/yjlee/ISR/ISRStudy push --set-upstream origin main
 - `scripts/build_real_isr_tools.sh`: build command for the producer.
 - `scripts/run_real_isr_production.sh`: standalone real-generator production wrapper.
 - `cards/`: real-generator Herwig and Sherpa cards for ISR ON/OFF.
-- `plot_real_isr_results.C`: plotting and sample-statistics macro.
+- `macros/plot_real_isr_results.C`: plotting and sample-statistics macro.

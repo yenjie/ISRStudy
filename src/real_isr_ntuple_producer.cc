@@ -578,7 +578,9 @@ void fillFromHepMC(const HepMC3::GenEvent& event, EventBranches& b)
 {
     b.processId = 1;
     b.processName = "e+e- -> hadrons";
-    b.weight = event.weights().empty() ? 1.0 : event.weights().front();
+    // The HepMC event weight is a generator bookkeeping weight for these streams;
+    // the event-shape samples are analyzed as unweighted events.
+    b.weight = 1.0;
 
     for (const auto& p : event.particles()) {
         const HepMC3::FourVector& v = p->momentum();

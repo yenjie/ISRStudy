@@ -1,9 +1,0 @@
-sample,isr,entries,mean_thrust,mean_visibleEnergy,mean_nISRPhotons,mean_totalISRPhotonEnergy,file
-Herwig 7.3.0,OFF,20000,0.9394564929,89.64926817,0,0,/data2/yjlee/ISRsample/real_20260510/mc_Herwig730_ISR_OFF.root
-Herwig 7.3.0,ON,20000,0.9398349347,89.16948465,0.5425,0.5132168995,/data2/yjlee/ISRsample/real_20260510/mc_Herwig730_ISR_ON.root
-PYTHIA 8.315,OFF,20000,0.9315877091,89.48198774,0,0,/data2/yjlee/ISRsample/real_20260510/mc_Pythia8315_ISR_OFF.root
-PYTHIA 8.315,ON,20000,0.932051912,89.32181136,2.73125,0.2119699646,/data2/yjlee/ISRsample/real_20260510/mc_Pythia8315_ISR_ON.root
-Sherpa 3.0.3,OFF,20000,0.9340783072,89.59419107,0,0,/data2/yjlee/ISRsample/real_20260510/mc_Sherpa303_ISR_OFF.root
-Sherpa 3.0.3,ON,20000,0.9356467203,66.69276624,17.9721,22.97941976,/data2/yjlee/ISRsample/real_20260510/mc_Sherpa303_ISR_ON.root
-PYTHIA 8.315 (Vincia),OFF,20000,0.9329749258,89.50748682,0,0,/data2/yjlee/ISRsample/real_20260510/mc_Pythia8315_Vincia_ISR_OFF.root
-PYTHIA 8.315 (Vincia),ON,20000,0.9325805702,89.32759808,2.00355,0.1984956831,/data2/yjlee/ISRsample/real_20260510/mc_Pythia8315_Vincia_ISR_ON.root

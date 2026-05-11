@@ -4,11 +4,7 @@
 *.aux
 *.out
 *.toc
+real_isr_ntuple_producer
 
 # Local smoke-test directories
 isrstudy_smoke_*/
-
-# Keep the checked-in reference plot artifacts under results/
-!results/*.png
-!results/*.pdf
-
