@@ -120,6 +120,20 @@ All plots are made by reading the new ROOT ntuples:
 /data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Pythia8315_Vincia_ISR_ON_OFF.png
 ```
 
+## Repository and Overleaf sync status
+
+Status from the 100k validation update:
+
+- The 100k ROOT ntuples and refreshed plots were produced with ROOT 6.34.04 from `/raid5/root/root-v6.34.04/root/bin/thisroot.sh`.
+- The Overleaf analysis note was updated and pushed successfully to `https://git.overleaf.com/69ff6df5f5dd70ea72cedce4` as commit `6ea6cdb`.
+- The `ISRStudy` code/documentation/results snapshot was committed locally as `c2801bf` with message `Add 100k real ISR validation updates`.
+- Pushing `ISRStudy` to GitHub is blocked because the configured remote is `git@github.com:yenjie/ISRStudy.git` and GitHub returns `Repository not found`.
+- Once the correct GitHub remote or access permission is available, push the local commit with:
+
+```bash
+git -C /raid5/data/yjlee/ISR/ISRStudy push --set-upstream origin main
+```
+
 ## Code entry points
 
 - `src/real_isr_ntuple_producer.cc`: direct PYTHIA/Vincia production and HepMC-to-ROOT conversion for Herwig/Sherpa.
