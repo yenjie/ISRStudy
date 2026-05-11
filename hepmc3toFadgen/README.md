@@ -8,16 +8,17 @@ The production chain is intentionally staged:
 Sherpa 3.0.3 -> HepMC ASCII -> FADGEN exchange file -> validation ROOT ntuple
 ```
 
-The converter in this directory writes a documented `FADGEN_EXCHANGE_ASCII_V1`
-file.  This is a loss-preserving generator-level exchange record designed to be
-adapted to the exact DELPHI/FADGEN FAD record once the local FADGEN writer or
-format document is available.  It keeps the final FAD-writer convention isolated
-in `src/hepmc3_to_fadgen.cc`, so replacing the output writer does not affect the
-Sherpa production or validation scripts.
+The converter in this directory can write two formats:
 
-During setup, no native FADGEN/FAD writer or format specification was found in
-the local ISR work area.  The exchange format is therefore the implemented
-bridge and validation target until that native writer/spec is supplied.
+- `DELSIM_UNFORMATTED_LUJETS`: native DELPHI external-generator input for
+  `runsim -gext`, using the same Fortran unformatted LUJETS record layout as
+  the DELPHI Pythia example `WINWRITE` routine.
+- `FADGEN_EXCHANGE_ASCII_V1`: a loss-preserving generator-level exchange record
+  used for debugging and format audits.
+
+The Sherpa production wrapper writes native `DELSIM_UNFORMATTED_LUJETS` by
+default.  Use `FADGEN_OUTPUT_KIND=exchange` only for human-readable converter
+debugging.
 
 ## Build
 
@@ -64,7 +65,7 @@ Outputs are written as:
 $OUTDIR/
   cards/
   hepmc/
-  fad/
+  fad/                 # native DELSIM unformatted LUJETS by default
   root_validation/
   logs/
   metadata/
@@ -126,11 +127,33 @@ lxplus`).  The script copies the candidate FADGEN file to LXPLUS, sources
 runs the DELPHI `dump` skelana example on the resulting `simana.sdst` or
 `simana.xsdst`.
 
-Validation status as of setup: the LXPLUS run was not completed because no
-authenticated CERN SSH master connection was available in the agent session.
-The current converter output is `FADGEN_EXCHANGE_ASCII_V1`; it is not yet
-confirmed to be native DELSIM unformatted FADGEN.  The LXPLUS test above is the
-decisive check.
+Validation status:
+
+- The old text exchange output starts `runsim`, but `SXRDLU` reports a read
+  error and no events are processed.  It is not native FADGEN.
+- The native `DELSIM_UNFORMATTED_LUJETS` output passed the LXPLUS chain on
+  2026-05-11: `runsim -gext` processed 3 events and wrote 3 DST records, then
+  the DELPHI `dump` skelana example read `simana.sdst` and produced 758
+  `CHECK:` lines.
+
+The local copy of that validation is stored in:
+
+```text
+/raid5/data/yjlee/ISR/hepmc3toFadgen_native_skelana_validation
+```
+
+## Native DELSIM LUJETS Format
+
+The native output follows the DELPHI example in
+`gitlab.cern.ch/delphi/examples/pythia/delpyt.for`, routine `WINWRITE`:
+
+- one Fortran unformatted sequential record per event
+- 32-bit record markers, as written/read by gfortran on x86_64
+- payload: `N`, then for each LUJETS particle `K(1:5), P(1:5), V(1:5)`
+- `K` entries are 32-bit integers
+- `P` and `V` entries are 32-bit floating point values
+- final HepMC particles are written as stable LUJETS particles with `K(1)=1`
+- a final generator-comment line is appended with `K(1)=21`
 
 ## FADGEN Exchange Format
 

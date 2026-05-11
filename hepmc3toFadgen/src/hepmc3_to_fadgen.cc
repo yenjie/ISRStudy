@@ -13,6 +13,9 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -26,6 +29,7 @@ struct Options {
     std::string output;
     std::string metadata;
     std::string format = "auto";
+    std::string outputKind = "exchange";
     std::string generatorName = "Sherpa 3.0.3";
     std::string mode = "UNKNOWN";
     double sqrtS = 91.1876;
@@ -57,6 +61,7 @@ Options parseArgs(int argc, char** argv)
         else if (key == "--output") opt.output = requireValue(i, argc, argv);
         else if (key == "--metadata") opt.metadata = requireValue(i, argc, argv);
         else if (key == "--format") opt.format = requireValue(i, argc, argv);
+        else if (key == "--outputKind") opt.outputKind = requireValue(i, argc, argv);
         else if (key == "--generatorName") opt.generatorName = requireValue(i, argc, argv);
         else if (key == "--mode") opt.mode = requireValue(i, argc, argv);
         else if (key == "--sqrtS") opt.sqrtS = std::atof(requireValue(i, argc, argv).c_str());
@@ -67,13 +72,15 @@ Options parseArgs(int argc, char** argv)
                 << "  hepmc3_to_fadgen --input events.hepmc --output sample.fadgen [options]\n\n"
                 << "Options:\n"
                 << "  --format auto|hepmc2|hepmc3\n"
+                << "  --outputKind exchange|delsim-lujets\n"
                 << "  --metadata sample.json\n"
                 << "  --generatorName NAME\n"
                 << "  --mode OFF|PDFESherpa|YFS\n"
                 << "  --sqrtS GEV\n"
                 << "  --maxEvents N\n\n"
-                << "Output is FADGEN_EXCHANGE_ASCII_V1, a documented intermediate\n"
-                << "record pending the exact local DELPHI/FADGEN FAD writer spec.\n";
+                << "Default output is FADGEN_EXCHANGE_ASCII_V1.  Use\n"
+                << "--outputKind delsim-lujets for native DELSIM unformatted\n"
+                << "LUJETS records accepted by runsim -gext.\n";
             std::exit(0);
         } else {
             throw std::runtime_error("Unknown argument: " + key);
@@ -81,6 +88,9 @@ Options parseArgs(int argc, char** argv)
     }
     if (opt.input.empty()) throw std::runtime_error("--input is required");
     if (opt.output.empty()) throw std::runtime_error("--output is required");
+    if (opt.outputKind != "exchange" && opt.outputKind != "delsim-lujets") {
+        throw std::runtime_error("--outputKind must be exchange or delsim-lujets");
+    }
     return opt;
 }
 
@@ -248,7 +258,8 @@ void writeMetadata(const Options& opt, const std::string& format, const Summary&
     std::ofstream out(opt.metadata);
     if (!out) throw std::runtime_error("Failed to open metadata output: " + opt.metadata);
     out << "{\n"
-        << "  \"format\": \"FADGEN_EXCHANGE_ASCII_V1\",\n"
+        << "  \"format\": \"" << (opt.outputKind == "delsim-lujets" ? "DELSIM_UNFORMATTED_LUJETS" : "FADGEN_EXCHANGE_ASCII_V1") << "\",\n"
+        << "  \"outputKind\": \"" << jsonEscape(opt.outputKind) << "\",\n"
         << "  \"generatorName\": \"" << jsonEscape(opt.generatorName) << "\",\n"
         << "  \"mode\": \"" << jsonEscape(opt.mode) << "\",\n"
         << "  \"sqrtS_GeV\": " << std::setprecision(12) << opt.sqrtS << ",\n"
@@ -265,25 +276,138 @@ void writeMetadata(const Options& opt, const std::string& format, const Summary&
         << "}\n";
 }
 
+template <typename T>
+void appendScalar(std::vector<char>& payload, const T& value)
+{
+    const char* ptr = reinterpret_cast<const char*>(&value);
+    payload.insert(payload.end(), ptr, ptr + sizeof(T));
+}
+
+float lengthToMillimeter(float x, HepMC3::Units::LengthUnit unit)
+{
+    if (unit == HepMC3::Units::CM) return 10.0f * x;
+    return x;
+}
+
+bool isFinalForDelsim(const HepMC3::ConstGenParticlePtr& p)
+{
+    if (!p) return false;
+    if (p->status() != 1) return false;
+    if (p->end_vertex()) return false;
+    return true;
+}
+
+void appendLujetsParticle(std::vector<char>& payload,
+                          int status,
+                          int pdg,
+                          const HepMC3::FourVector& mom,
+                          const HepMC3::FourVector& pos,
+                          HepMC3::Units::LengthUnit lengthUnit)
+{
+    const int32_t k[5] = {
+        static_cast<int32_t>(status),
+        static_cast<int32_t>(pdg),
+        0,
+        0,
+        0
+    };
+    const float p[5] = {
+        static_cast<float>(mom.px()),
+        static_cast<float>(mom.py()),
+        static_cast<float>(mom.pz()),
+        static_cast<float>(mom.e()),
+        static_cast<float>(mass(mom))
+    };
+    const float v[5] = {
+        lengthToMillimeter(static_cast<float>(pos.x()), lengthUnit),
+        lengthToMillimeter(static_cast<float>(pos.y()), lengthUnit),
+        lengthToMillimeter(static_cast<float>(pos.z()), lengthUnit),
+        lengthToMillimeter(static_cast<float>(pos.t()), lengthUnit),
+        0.0f
+    };
+    for (int i = 0; i < 5; ++i) appendScalar(payload, k[i]);
+    for (int i = 0; i < 5; ++i) appendScalar(payload, p[i]);
+    for (int i = 0; i < 5; ++i) appendScalar(payload, v[i]);
+}
+
+void appendGeneratorComment(std::vector<char>& payload)
+{
+    const int32_t k[5] = {21, 0, 303, 0, 0};
+    const float p[5] = {3.003f, 0.0f, 0.0f, 0.0f, 0.0f};
+    const float v[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    for (int i = 0; i < 5; ++i) appendScalar(payload, k[i]);
+    for (int i = 0; i < 5; ++i) appendScalar(payload, p[i]);
+    for (int i = 0; i < 5; ++i) appendScalar(payload, v[i]);
+}
+
+void writeFortranRecord(std::ostream& out, const std::vector<char>& payload)
+{
+    if (payload.size() > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+        throw std::runtime_error("DELSIM LUJETS record is too large for 32-bit Fortran record markers");
+    }
+    const int32_t nbytes = static_cast<int32_t>(payload.size());
+    out.write(reinterpret_cast<const char*>(&nbytes), sizeof(nbytes));
+    out.write(payload.data(), static_cast<std::streamsize>(payload.size()));
+    out.write(reinterpret_cast<const char*>(&nbytes), sizeof(nbytes));
+}
+
+void writeDelsimLujetsEvent(std::ostream& out, const HepMC3::GenEvent& event, Summary& summary)
+{
+    std::vector<HepMC3::ConstGenParticlePtr> selected;
+    for (const auto& p : event.particles()) {
+        if (isFinalForDelsim(p)) selected.push_back(p);
+    }
+    if (selected.size() + 1 > 4000) {
+        throw std::runtime_error("Too many particles for LUJETS common");
+    }
+
+    const double weight = event.weights().empty() ? 1.0 : event.weights().front();
+    summary.events += 1;
+    summary.particles += static_cast<long long>(event.particles().size());
+    summary.sumWeights += weight;
+    summary.sumWeight2 += weight * weight;
+
+    const int32_t n = static_cast<int32_t>(selected.size() + 1);
+    std::vector<char> payload;
+    payload.reserve(sizeof(int32_t) + static_cast<size_t>(n) * 15U * sizeof(int32_t));
+    appendScalar(payload, n);
+
+    for (const auto& p : selected) {
+        const HepMC3::FourVector mom = p->momentum();
+        HepMC3::FourVector pos(0.0, 0.0, 0.0, 0.0);
+        auto prod = p->production_vertex();
+        if (prod && prod->has_set_position()) pos = prod->position();
+        appendLujetsParticle(payload, 1, p->pid(), mom, pos, event.length_unit());
+        summary.finalParticles += 1;
+        summary.sumEnergyFinal += mom.e();
+        if (isISRPhotonCandidate(p)) summary.isrPhotonCandidates += 1;
+    }
+    appendGeneratorComment(payload);
+    writeFortranRecord(out, payload);
+}
+
 int main(int argc, char** argv)
 {
     try {
         const Options opt = parseArgs(argc, argv);
         const std::string format = detectFormat(opt.input, opt.format);
         std::unique_ptr<HepMC3::Reader> reader = makeReader(opt.input, format);
-        std::ofstream out(opt.output);
+        std::ios_base::openmode mode = std::ios::out;
+        if (opt.outputKind == "delsim-lujets") mode |= std::ios::binary;
+        std::ofstream out(opt.output, mode);
         if (!out) throw std::runtime_error("Failed to open output: " + opt.output);
 
-        writeHeader(out, opt, format);
+        if (opt.outputKind == "exchange") writeHeader(out, opt, format);
         Summary summary;
         while (!reader->failed()) {
             HepMC3::GenEvent event(HepMC3::Units::GEV, HepMC3::Units::MM);
             reader->read_event(event);
             if (reader->failed()) break;
-            writeEvent(out, event, summary);
+            if (opt.outputKind == "exchange") writeEvent(out, event, summary);
+            else writeDelsimLujetsEvent(out, event, summary);
             if (opt.maxEvents > 0 && summary.events >= opt.maxEvents) break;
         }
-        out << "END_FADGEN_EXCHANGE\n";
+        if (opt.outputKind == "exchange") out << "END_FADGEN_EXCHANGE\n";
         reader->close();
         out.close();
         writeMetadata(opt, format, summary);

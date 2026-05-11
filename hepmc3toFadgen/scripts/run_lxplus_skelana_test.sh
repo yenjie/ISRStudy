@@ -76,7 +76,9 @@ if [[ ! -r /cvmfs/delphi.cern.ch/setup.sh ]]; then
   exit 3
 fi
 
+set +u
 . /cvmfs/delphi.cern.ch/setup.sh
+set -u
 
 {
   echo "## Environment"
@@ -130,6 +132,10 @@ set +e
 ./dump.sh > dump_driver.log 2> dump_driver.err
 dump_status=$?
 set -e
+check_lines=0
+if [[ -s dump.log ]]; then
+  check_lines=$(grep -c '^CHECK:' dump.log || true)
+fi
 
 {
   echo "## skelana dump"
@@ -138,10 +144,15 @@ set -e
   echo "- exit status: $dump_status"
   if [[ -s dump.log ]]; then
     echo "- dump.log: $work/dump/dump.log"
-    echo "- CHECK lines: $(grep -c 'CHECK:' dump.log || true)"
+    echo "- CHECK lines: $check_lines"
   fi
   echo
 } >> "$work/validation_manifest.md"
+
+if [[ "$dump_status" -eq 0 && "$check_lines" -le 0 ]]; then
+  echo "skelana completed but no CHECK lines were produced; treating as failed event-content validation" | tee -a "$work/validation_manifest.md"
+  exit 5
+fi
 
 exit "$dump_status"
 REMOTE_TEST

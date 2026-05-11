@@ -12,6 +12,7 @@ TARGETS="${TARGETS:-OFF,PDFESherpa,YFS}"
 WORKDIR="${WORKDIR:-$OUTDIR/work}"
 HEPMC_FORMAT="${HEPMC_FORMAT:-hepmc2}"
 MAX_WORKERS="${MAX_WORKERS:-1}"
+FADGEN_OUTPUT_KIND="${FADGEN_OUTPUT_KIND:-delsim-lujets}"
 
 SHERPA_BIN="${SHERPA_BIN:-/data/yjlee/OnePointChargeCorrelator/external/sherpa-3.0.3-build/outputs/bin/Sherpa}"
 SHERPA_BUILD_ROOT="${SHERPA_BUILD_ROOT:-/data/yjlee/OnePointChargeCorrelator/external/sherpa-3.0.3-build}"
@@ -125,6 +126,7 @@ run_mode() {
     --output "$fad" \
     --metadata "$metadata" \
     --format "$HEPMC_FORMAT" \
+    --outputKind "$FADGEN_OUTPUT_KIND" \
     --generatorName "Sherpa 3.0.3" \
     --mode "$mode" \
     --sqrtS "$ECM" \
@@ -171,6 +173,7 @@ cat > "$OUTDIR/metadata/production_summary.md" <<EOF_SUMMARY
 - sqrtS: $ECM
 - targets: $TARGETS
 - HepMC format: $HEPMC_FORMAT
+- FADGEN output kind: $FADGEN_OUTPUT_KIND
 - Sherpa binary: $SHERPA_BIN
 - output: $OUTDIR
 
