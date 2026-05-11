@@ -44,7 +44,7 @@ The multi-GB ROOT ntuples are intentionally not committed to git.
 
 ## Current Production
 
-The current real-generator validation production is stored on the analysis
+The latest generated 100k validation production is stored on the analysis
 machine at:
 
 ```text
@@ -59,6 +59,21 @@ It contains eight ROOT files produced from real standalone generators:
 - Sherpa 3.0.3
 - ISR ON and ISR OFF for each configuration
 - `100,000` events per file in the validation refresh
+
+Those 100k files were produced before the generator-setting requirements were
+updated.  The code and cards now define the next production as:
+
+- PYTHIA/PYTHIA-Vincia: `PDF:lepton`, `PartonLevel:ISR`, and
+  `SpaceShower:QEDshowerByL` are all toggled together; `gm/Z -> q qbar` is
+  selected with `WeakSingleBoson:ffbar2gmZ`, `WeakZ0:gmZmode = 0`, and
+  `23:onIfAny = 1 2 3 4 5`.
+- Herwig 7.3.0: the baseline is `snippets/EECollider.in` plus
+  `MEee2gZ2qq`, `91.1876*GeV`, and `Interactions QCD`; the comparison sample
+  is explicitly labeled `QEDshower` and uses the installed Herwig spelling
+  `Interactions QEDQCD` for QCD+QED showering.  The literal `QCDandQED` token
+  is rejected by the installed Herwig binary.
+- Sherpa 3.0.3: nominal ISR uses `PDF_LIBRARY: PDFESherpa`; YFS ISR is a
+  separately labeled alternative and is not mixed with `PDFESherpa`.
 
 The old fallback samples and the old 5M archive were removed from
 `/data2/yjlee/ISRsample` to avoid confusion.

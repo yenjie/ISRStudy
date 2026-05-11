@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO_ROOT"
 
 EVENTS="${EVENTS:-100000}"
-ECM="${ECM:-91.2}"
+ECM="${ECM:-91.1876}"
 OUTDIR="${OUTDIR:-/data2/yjlee/ISRsample/real_generators_20260510}"
 WORKDIR="${WORKDIR:-$OUTDIR/work}"
 FORCE="${FORCE:-0}"
@@ -59,9 +59,15 @@ run_pythia() {
 run_herwig() {
   local isr="$1"
   local seed="$2"
-  local mode="OFF"
-  [[ "$isr" == "1" ]] && mode="ON"
-  local out="$OUTDIR/mc_Herwig730_ISR_${mode}.root"
+  local sample="ISR_OFF"
+  local run_label="ISR_OFF"
+  local template="$REPO_ROOT/cards/herwig_zpole_hepmc_ISR_OFF.in.template"
+  if [[ "$isr" == "1" ]]; then
+    sample="QEDshower"
+    run_label="QEDshower"
+    template="$REPO_ROOT/cards/herwig_zpole_hepmc_QEDshower.in.template"
+  fi
+  local out="$OUTDIR/mc_Herwig730_${sample}.root"
   if [[ -f "$out" && "$FORCE" != "1" ]]; then
     echo "[reuse] $out"
     return
@@ -70,13 +76,12 @@ run_herwig() {
     echo "Missing Herwig binary: $HERWIG_BIN" >&2
     exit 1
   fi
-  local work="$WORKDIR/herwig_ISR_${mode}"
+  local work="$WORKDIR/herwig_${run_label}"
   mkdir -p "$work"
-  local run_name="LEP_Herwig730_ISR_${mode}"
+  local run_name="LEP_Herwig730_${run_label}"
   local card="$work/${run_name}.in"
   local setup="$work/${run_name}.setup"
   local fifo="$work/${run_name}.hepmc2"
-  local template="$REPO_ROOT/cards/herwig_zpole_hepmc_ISR_${mode}.in.template"
   sed \
     -e "s|@EECOLLIDER@|$HERWIG_EECOLLIDER|g" \
     -e "s|@ENERGY@|$ECM|g" \
@@ -96,7 +101,7 @@ EOF_SETUP
     --nEvents "$EVENTS" \
     --sqrtS "$ECM" \
     --isrOn "$isr" \
-    --generatorName "Herwig730" \
+    --generatorName "Herwig730_${run_label}" \
     --generatorId 1 \
     --output "$out" > "$work/converter.log" 2>&1 &
   local converter_pid=$!
@@ -137,11 +142,32 @@ setup_sherpa_runtime() {
 }
 
 run_sherpa() {
-  local isr="$1"
+  local mode_arg="$1"
   local seed="$2"
-  local mode="OFF"
-  [[ "$isr" == "1" ]] && mode="ON"
-  local out="$OUTDIR/mc_Sherpa303_ISR_${mode}.root"
+  local isr="0"
+  local sample="ISR_OFF"
+  local template="$REPO_ROOT/cards/sherpa_zpole_hepmc_ISR_OFF.yaml.template"
+  local generator_name="Sherpa303"
+  case "$mode_arg" in
+    OFF)
+      ;;
+    ON)
+      isr="1"
+      sample="ISR_ON"
+      template="$REPO_ROOT/cards/sherpa_zpole_hepmc_ISR_ON.yaml.template"
+      ;;
+    YFS)
+      isr="1"
+      sample="ISR_YFS"
+      template="$REPO_ROOT/cards/sherpa_zpole_hepmc_ISR_YFS.yaml.template"
+      generator_name="Sherpa303_YFS"
+      ;;
+    *)
+      echo "Unknown Sherpa mode: $mode_arg" >&2
+      exit 1
+      ;;
+  esac
+  local out="$OUTDIR/mc_Sherpa303_${sample}.root"
   if [[ -f "$out" && "$FORCE" != "1" ]]; then
     echo "[reuse] $out"
     return
@@ -151,13 +177,13 @@ run_sherpa() {
     exit 1
   fi
   setup_sherpa_runtime
-  local work="$WORKDIR/sherpa_ISR_${mode}"
+  local work="$WORKDIR/sherpa_${sample}"
   mkdir -p "$work"
   local output_basename="events"
   local card="$work/Sherpa.yaml"
   local fifo="$work/$output_basename"
   sed -e "s|@OUTPUT_BASENAME@|$output_basename|g" \
-    "$REPO_ROOT/cards/sherpa_zpole_hepmc_ISR_${mode}.yaml.template" > "$card"
+    "$template" > "$card"
   rm -f "$fifo"
   mkfifo "$fifo"
   "$REPO_ROOT/real_isr_ntuple_producer" \
@@ -167,7 +193,7 @@ run_sherpa() {
     --nEvents "$EVENTS" \
     --sqrtS "$ECM" \
     --isrOn "$isr" \
-    --generatorName "Sherpa303" \
+    --generatorName "$generator_name" \
     --generatorId 3 \
     --output "$out" > "$work/converter.log" 2>&1 &
   local converter_pid=$!
@@ -200,16 +226,20 @@ if contains_target herwig || contains_target herwig-off; then
   run_herwig 0 1300510
 fi
 
-if contains_target herwig || contains_target herwig-on; then
+if contains_target herwig || contains_target herwig-on || contains_target herwig-qedshower; then
   run_herwig 1 1300511
 fi
 
 if contains_target sherpa || contains_target sherpa-off; then
-  run_sherpa 0 1400510
+  run_sherpa OFF 1400510
 fi
 
 if contains_target sherpa || contains_target sherpa-on; then
-  run_sherpa 1 1400511
+  run_sherpa ON 1400511
+fi
+
+if contains_target sherpa-yfs; then
+  run_sherpa YFS 1400521
 fi
 
 echo "[done] real ISR production in $OUTDIR"

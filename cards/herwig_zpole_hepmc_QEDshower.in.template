@@ -1,16 +1,10 @@
 read @EECOLLIDER@
 
-# The stock Herwig EECollider snippet disables lepton shower PDFs.
-# Restore the built-in lepton PDF for this ISR-on variation so QED
-# radiation from the incoming e+e- beams is available to the shower.
-cd /Herwig/Shower
-set ShowerHandler:PDFA /Herwig/Partons/LeptonPDF
-set ShowerHandler:PDFB /Herwig/Partons/LeptonPDF
-set /Herwig/DipoleShower/DipoleShowerHandler:PDFA /Herwig/Partons/LeptonPDF
-set /Herwig/DipoleShower/DipoleShowerHandler:PDFB /Herwig/Partons/LeptonPDF
-
 cd /Herwig/MatrixElements
 insert SubProcess:MatrixElements 0 MEee2gZ2qq
+
+cd /Herwig/Shower
+set ShowerHandler:Interactions QEDQCD
 
 cd /Herwig/Generators
 set EventGenerator:EventHandler:LuminosityFunction:Energy @ENERGY@

@@ -26,6 +26,7 @@ struct SampleDef {
     std::string tag;
     std::string offFile;
     std::string onFile;
+    std::string onLabel;
     int color;
     int marker;
     double xOffset;
@@ -220,9 +221,9 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
     lat.SetTextFont(42);
     lat.SetTextSize(0.040);
     lat.DrawLatex(0.145, 0.875, "ALEPH archived data");
-    lat.DrawLatex(0.650, 0.875, "e^{+}e^{-}  #sqrt{s}=91.2 GeV");
+    lat.DrawLatex(0.630, 0.875, "e^{+}e^{-}  #sqrt{s}=91.1876 GeV");
     lat.SetTextSize(0.028);
-    lat.DrawLatex(0.145, 0.815, "Real standalone generators, 20k events per ISR mode");
+    lat.DrawLatex(0.145, 0.815, "Real standalone generators; Herwig uses QCD vs QCD+QED shower");
     TLegend* leg = new TLegend(0.43, 0.18, 0.91, 0.38);
     leg->SetBorderSize(0);
     leg->SetFillStyle(0);
@@ -316,7 +317,7 @@ void drawThrustVsAleph(const std::vector<SampleDef>& samples)
     lat.SetNDC();
     lat.SetTextFont(42);
     lat.SetTextSize(0.034);
-    lat.DrawLatex(0.62, 0.86, "#sqrt{s}=91.2 GeV, ISR ON");
+    lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR/QED-shower comparison");
     leg->Draw();
     frame->Draw("AXIS SAME");
     c->SaveAs(joinPath(gOutDir, "real_isr_on_thrust_vs_aleph.png").c_str());
@@ -395,7 +396,7 @@ void drawVisibleEnergy(const std::vector<SampleDef>& samples)
         leg->SetTextFont(42);
         leg->SetTextSize(0.034);
         leg->AddEntry(hOff, (s.label + " ISR OFF").c_str(), "l");
-        leg->AddEntry(hOn, (s.label + " ISR ON").c_str(), "l");
+        leg->AddEntry(hOn, (s.label + " " + s.onLabel).c_str(), "l");
         leg->Draw();
         c->SaveAs(joinPath(gOutDir, "real_visible_energy_" + s.tag + "_ISR_ON_OFF.png").c_str());
         c->SaveAs(joinPath(gOutDir, "real_visible_energy_" + s.tag + "_ISR_ON_OFF.pdf").c_str());
@@ -416,7 +417,7 @@ void writeStats(const std::vector<SampleDef>& samples)
     out << std::setprecision(10);
     out << "sample,isr,entries,mean_thrust,mean_visibleEnergy,mean_nISRPhotons,mean_totalISRPhotonEnergy,file\n";
     for (const SampleDef& s : samples) {
-        for (const auto& modeFile : {std::make_pair(std::string("OFF"), s.offFile), std::make_pair(std::string("ON"), s.onFile)}) {
+        for (const auto& modeFile : {std::make_pair(std::string("OFF"), s.offFile), std::make_pair(s.onLabel, s.onFile)}) {
             TFile f(modeFile.second.c_str());
             TTree* t = static_cast<TTree*>(f.Get("Events"));
             auto mean = [&](const char* x) {
@@ -445,10 +446,10 @@ void plot_real_isr_results()
     TH1::AddDirectory(kFALSE);
 
     std::vector<SampleDef> samples = {
-        {"Herwig 7.3.0", "Herwig730", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_ISR_ON.root"), kBlue + 2, 20, -0.0015},
-        {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), kRed + 1, 20, -0.0005},
-        {"Sherpa 3.0.3", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), kMagenta + 2, 23, 0.0005},
-        {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), kCyan + 2, 22, 0.0015}
+        {"Herwig 7.3.0 QED shower", "Herwig730_QEDshower", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_QEDshower.root"), "QEDshower", kBlue + 2, 20, -0.0015},
+        {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), "ISR ON", kRed + 1, 20, -0.0005},
+        {"Sherpa 3.0.3 PDFESherpa", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), "ISR ON (PDFESherpa)", kMagenta + 2, 23, 0.0005},
+        {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), "ISR ON", kCyan + 2, 22, 0.0015}
     };
 
     drawISRCorrection(samples);

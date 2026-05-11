@@ -38,7 +38,7 @@ struct Options {
     int seed = 1200510;
     bool isrOn = false;
     bool vincia = false;
-    double sqrtS = 91.2;
+    double sqrtS = 91.1876;
 };
 
 struct SelectionConfig {
@@ -513,8 +513,10 @@ int runPythia(const Options& opt)
     pythia.readString("Beams:idB = -11");
     pythia.readString("Beams:eCM = " + std::to_string(opt.sqrtS));
     pythia.readString(opt.isrOn ? "PDF:lepton = on" : "PDF:lepton = off");
+    pythia.readString(opt.isrOn ? "PartonLevel:ISR = on" : "PartonLevel:ISR = off");
     pythia.readString(opt.isrOn ? "SpaceShower:QEDshowerByL = on" : "SpaceShower:QEDshowerByL = off");
     pythia.readString("WeakSingleBoson:ffbar2gmZ = on");
+    pythia.readString("WeakZ0:gmZmode = 0");
     pythia.readString("23:onMode = off");
     pythia.readString("23:onIfAny = 1 2 3 4 5");
 

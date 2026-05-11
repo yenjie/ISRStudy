@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO_ROOT"
 
 EVENTS="${EVENTS:-2000000}"
-ECM="${ECM:-91.2}"
+ECM="${ECM:-91.1876}"
 OUTDIR="${OUTDIR:-/data2/yjlee/ISRsample/real_2M_20260511}"
 WORKDIR="${WORKDIR:-$OUTDIR/work}"
 MAX_WORKERS="${MAX_WORKERS:-10}"
@@ -19,9 +19,10 @@ targets=(
   pythia-vincia-off
   pythia-vincia-on
   herwig-off
-  herwig-on
+  herwig-qedshower
   sherpa-off
   sherpa-on
+  sherpa-yfs
 )
 
 declare -a pids=()

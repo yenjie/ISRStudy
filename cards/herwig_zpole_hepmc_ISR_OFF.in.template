@@ -3,6 +3,9 @@ read @EECOLLIDER@
 cd /Herwig/MatrixElements
 insert SubProcess:MatrixElements 0 MEee2gZ2qq
 
+cd /Herwig/Shower
+set ShowerHandler:Interactions QCD
+
 cd /Herwig/Generators
 set EventGenerator:EventHandler:LuminosityFunction:Energy @ENERGY@
 

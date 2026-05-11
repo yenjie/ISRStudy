@@ -25,33 +25,54 @@ All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/
 
 ## ISR on/off definitions
 
-The production was audited so the generator/process, beam energy, hadronization,
-decays, output schema, and event selection are held fixed within each generator
-pair.  The only intended ON/OFF changes are the generator-specific ISR controls
-listed below.
+The generator/process, beam energy, hadronization, decays, output schema, and
+event selection must be held fixed within each generator pair.  The required
+ON/OFF changes are the generator-specific controls below.
 
 - PYTHIA ISR OFF:
   - `PDF:lepton = off`
+  - `PartonLevel:ISR = off`
   - `SpaceShower:QEDshowerByL = off`
 - PYTHIA ISR ON:
   - `PDF:lepton = on`
+  - `PartonLevel:ISR = on`
   - `SpaceShower:QEDshowerByL = on`
-- Vincia uses the same PYTHIA beam/ISR settings, with the Vincia shower model attached.
-- Herwig ISR OFF uses the standard `snippets/EECollider.in`, which sets the lepton shower PDFs to `NULL`.
-- Herwig ISR ON restores the built-in lepton PDFs for the shower:
-  - `/Herwig/Shower/ShowerHandler:PDFA = /Herwig/Partons/LeptonPDF`
-  - `/Herwig/Shower/ShowerHandler:PDFB = /Herwig/Partons/LeptonPDF`
-- Sherpa ISR OFF uses `PDF_LIBRARY: None`, `11 -11 -> 93 93`, and the same
-  `PARTICLE_DATA: 11: Massive: true` setting as ISR ON.
-- Sherpa ISR ON uses the installed LEP YFS pattern:
+- PYTHIA hard process and decay restriction:
+  - `WeakSingleBoson:ffbar2gmZ = on`
+  - `WeakZ0:gmZmode = 0`
+  - `23:onMode = off`
+  - `23:onIfAny = 1 2 3 4 5`
+- Vincia uses the same PYTHIA hard-process, decay, beam, and ISR settings, with the Vincia shower model attached.
+- Herwig 7.3.0 baseline:
+  - read `snippets/EECollider.in`
+  - insert `MEee2gZ2qq`
+  - set the luminosity-function energy to `91.1876*GeV`
+  - set `/Herwig/Shower/ShowerHandler:Interactions QCD`
+- Herwig 7.3.0 QED-shower comparison:
+  - same hard setup as the baseline
+  - requested physics mode: QCD plus QED showering
+  - the installed Herwig 7.3.0 switch spelling is
+    `/Herwig/Shower/ShowerHandler:Interactions QEDQCD`; the literal
+    `QCDandQED` token is rejected by the installed binary
+  - label the output `QEDshower`, not structure-function ISR
+  - do not claim this is a direct equivalent of PYTHIA `PDF:lepton` or Sherpa
+    `PDFESherpa` without verifying that from installed Herwig documentation or source.
+- Sherpa 3.0.3 ISR OFF:
+  - `BEAMS: [11, -11]`
+  - `BEAM_ENERGIES: 45.5938`
+  - `PDF_LIBRARY: None`
+  - `YFS: MODE: None`
+- Sherpa 3.0.3 nominal ISR ON, structure-function mode:
+  - `PDF_LIBRARY: PDFESherpa`
+  - `PDF_SET: Default`
+  - `ISR_E_ORDER: 1`
+  - `ISR_E_SCHEME: 2`
+  - `YFS: MODE: None`
+- Sherpa 3.0.3 YFS alternative:
+  - `PDF_LIBRARY: None`
   - `YFS: MODE: ISR`
-
-After the audit, the actual Sherpa OFF/ON card diff is only:
-
-```diff
-+YFS:
-+  MODE: ISR
-```
+  - `YFS: BETA: 1`
+- Never enable `PDFESherpa` and YFS ISR in the same nominal ISR sample.
 
 The local ALEPH agentic ISR correction uses precomputed PYTHIA 8 files,
 `Isr/isr0_ALL.root` and `Isr/isr1_ALL.root`, with `tgenBefore/thrust`.  It is
@@ -59,13 +80,27 @@ not a Sherpa ISR correction.  Those files contain 2.5M entries each and show
 `sqrt_sHat` fixed at `91.1876 GeV` for ISR OFF, while ISR ON has reduced
 `sqrt_sHat` from photon radiation.
 
+## Settings smoke test
+
+The updated settings were checked with tiny local samples after the requirements
+change:
+
+- PYTHIA ISR OFF and ISR ON each initialized and wrote 10 events with the
+  requested `PDF:lepton`, `PartonLevel:ISR`, and `SpaceShower:QEDshowerByL`
+  settings.
+- Herwig OFF, Herwig `QEDshower`, Sherpa OFF, Sherpa `PDFESherpa` ISR, and
+  Sherpa YFS alternative each wrote two-event ROOT files under
+  `/tmp/isr_generator_requirement_smoke`.
+- The Herwig smoke test verified that the installed `Interactions` switch
+  accepts `QEDQCD`, not `QCDandQED`.
+
 ## Production command
 
 ```bash
 EVENTS=100000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_100k_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
 ```
 
-The event count is intentionally configurable.  The 100k/event-mode sample is a validation refresh; larger 2M, 5M, or 20M production should use the same ISR definitions after accepting the generator-specific ISR settings.  The wrapper name still contains `10worker`, but the current invocation honors `MAX_WORKERS=15`.
+The event count is intentionally configurable.  The 100k/event-mode sample is a validation refresh; larger 2M, 5M, or 20M production should use the same ISR definitions after accepting the generator-specific ISR settings.  The wrapper name still contains `10worker`, but the current invocation honors `MAX_WORKERS=15`.  With the updated requirements, `all` includes the Sherpa YFS alternative in addition to the nominal Sherpa `PDFESherpa` ISR sample.
 
 ## Produced ROOT ntuples
 
@@ -73,16 +108,23 @@ Each file contains a TTree named `Events` with event-level branches and particle
 
 ```text
 mc_Herwig730_ISR_OFF.root
-mc_Herwig730_ISR_ON.root
+mc_Herwig730_QEDshower.root
 mc_Pythia8315_ISR_OFF.root
 mc_Pythia8315_ISR_ON.root
 mc_Sherpa303_ISR_OFF.root
 mc_Sherpa303_ISR_ON.root
+mc_Sherpa303_ISR_YFS.root
 mc_Pythia8315_Vincia_ISR_OFF.root
 mc_Pythia8315_Vincia_ISR_ON.root
 ```
 
-## Current sample statistics
+## Superseded 100k sample statistics
+
+The existing 100k files in `/data2/yjlee/ISRsample/real_100k_20260511` were
+generated before the requirements update in this note.  In particular, Herwig
+used a lepton-PDF restoration attempt and Sherpa nominal ISR used YFS.  Those
+outputs remain useful only as a historical validation snapshot; rerun production
+before using the plots or statistics as the current generator comparison.
 
 Summary file:
 
@@ -90,7 +132,7 @@ Summary file:
 /data2/yjlee/ISRsample/real_100k_20260511/results/real_generator_sample_statistics.csv
 ```
 
-Key means from the 100k/event-mode validation set:
+Key means from that superseded 100k/event-mode validation set:
 
 | sample | ISR | entries | mean thrust | mean visible energy [GeV] | mean ISR photons | mean ISR photon energy [GeV] |
 |---|---:|---:|---:|---:|---:|---:|
@@ -103,11 +145,11 @@ Key means from the 100k/event-mode validation set:
 | PYTHIA 8.315 (Vincia) | OFF | 100000 | 0.93267 | 89.52 | 0.000 | 0.000 |
 | PYTHIA 8.315 (Vincia) | ON | 100000 | 0.93245 | 89.33 | 2.003 | 0.206 |
 
-Sherpa YFS ISR is visibly much stronger than the PYTHIA and Herwig configurations in this validation sample.  Treat that as a configuration item to review before committing CPU/storage to a 20M-event run.
+Sherpa YFS ISR was visibly much stronger than the PYTHIA and Herwig configurations in this superseded validation sample.  The updated nominal Sherpa ISR sample uses `PDFESherpa` instead, with YFS kept as a separately labeled alternative.
 
-## Refreshed plots
+## Superseded refreshed plots
 
-All plots are made by reading the new ROOT ntuples:
+The existing plots were made by reading the superseded 100k ROOT ntuples:
 
 ```text
 /data2/yjlee/ISRsample/real_100k_20260511/results/isr_correction_studies_reproduction.png
