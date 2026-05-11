@@ -15,4 +15,12 @@ mkdir -p bin
   -lHepMC3 \
   -o bin/hepmc3_to_fadgen
 
+"$CXX" $CXXFLAGS src/validate_fadgen_vs_hepmc.cc \
+  -I/usr/include \
+  -L/usr/lib -L/usr/lib/x86_64-linux-gnu \
+  -Wl,-rpath,/usr/lib -Wl,-rpath,/usr/lib/x86_64-linux-gnu \
+  -lHepMC3 \
+  -o bin/validate_fadgen_vs_hepmc
+
 echo "[done] built $PKG_ROOT/bin/hepmc3_to_fadgen"
+echo "[done] built $PKG_ROOT/bin/validate_fadgen_vs_hepmc"

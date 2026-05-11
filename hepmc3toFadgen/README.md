@@ -71,6 +71,21 @@ $OUTDIR/
   metadata/
 ```
 
+Validate that the native FADGEN generator-level payload matches the original
+HepMC final-state content:
+
+```bash
+hepmc3toFadgen/bin/validate_fadgen_vs_hepmc \
+  --hepmc /data2/yjlee/ISRsample/sherpa_fadgen_1k/hepmc/sherpa_OFF.hepmc \
+  --fadgen /data2/yjlee/ISRsample/sherpa_fadgen_1k/fad/sherpa_OFF.fadgen \
+  --format hepmc2 \
+  --report /data2/yjlee/ISRsample/sherpa_fadgen_1k/metadata/fadgen_vs_hepmc_validation.md
+```
+
+The validator decodes each native DELSIM LUJETS Fortran record and compares
+the event-by-event final-particle multiplicity, PDG id, and `px, py, pz, E,
+mass` against the source HepMC record, allowing only float-rounding tolerance.
+
 ## Full Production
 
 ```bash

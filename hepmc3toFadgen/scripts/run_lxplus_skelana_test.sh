@@ -14,6 +14,7 @@ VERSION="${VERSION:-v94c}"
 LABO="${LABO:-CERN}"
 NRUN="${NRUN:-1000}"
 EBEAM="${EBEAM:-45.5938}"
+LOCAL_COPY_DIR="${LOCAL_COPY_DIR:-}"
 
 if [[ ! -s "$LOCAL_FADGEN" ]]; then
   echo "Missing LOCAL_FADGEN: $LOCAL_FADGEN" >&2
@@ -160,3 +161,16 @@ REMOTE_TEST
 echo "[done] remote workdir: $REMOTE_WORK"
 echo "Fetch manifest with:"
 echo "  scp $REMOTE:$REMOTE_WORK/validation_manifest.md ./"
+if [[ -n "$LOCAL_COPY_DIR" ]]; then
+  mkdir -p "$LOCAL_COPY_DIR"
+  scp "$REMOTE:$REMOTE_WORK/validation_manifest.md" "$LOCAL_COPY_DIR/"
+  scp "$REMOTE:$REMOTE_WORK/runsim.log" "$LOCAL_COPY_DIR/"
+  scp "$REMOTE:$REMOTE_WORK/runsim.err" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  scp "$REMOTE:$REMOTE_WORK/simana.fadsim" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  scp "$REMOTE:$REMOTE_WORK/simana.fadana" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  scp "$REMOTE:$REMOTE_WORK/simana.sdst" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  scp "$REMOTE:$REMOTE_WORK/simana.xsdst" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  scp "$REMOTE:$REMOTE_WORK/dump/dump.log" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  scp "$REMOTE:$REMOTE_WORK/dump/dump.err" "$LOCAL_COPY_DIR/" 2>/dev/null || true
+  echo "[done] copied validation outputs to $LOCAL_COPY_DIR"
+fi
