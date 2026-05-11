@@ -6,6 +6,8 @@
 *.toc
 real_isr_ntuple_producer
 make_endpoint_diagnostics
+hepmc3toFadgen/bin/
+*.fadgen
 
 # Local smoke-test directories
 isrstudy_smoke_*/

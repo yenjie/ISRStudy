@@ -34,6 +34,8 @@ particle-level observables, and parton-level observables.
   with low visible mass, longitudinal boost, or explicit ISR photon activity.
 - `macros/plot_endpoint_diagnostics.C`: 2D endpoint-correlation plotter and
   summary-table writer for the derived diagnostic ntuples.
+- `hepmc3toFadgen/`: Sherpa 3.0.3 to HepMC to FADGEN-exchange bridge, with a
+  documented converter and a DELPHI `skeleana` validation harness.
 - `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
 - `docs/REAL_GENERATOR_PRODUCTION.md`: current real-generator production status,
   version references, ISR ON/OFF definitions, sample statistics, and output paths.
