@@ -153,6 +153,16 @@ The refreshed plots are in:
 /data2/yjlee/ISRsample/real_3M_20260511/results
 ```
 
+The thrust-to-ALEPH comparison is written both as spectrum-only figures and as
+separate ratio-panel figures:
+
+```text
+real_isr_on_thrust_vs_aleph.png
+real_isr_on_thrust_vs_aleph_ratio.png
+real_isr_off_thrust_vs_aleph.png
+real_isr_off_thrust_vs_aleph_ratio.png
+```
+
 The full plotting macro wrote all figures and then ROOT crashed during
 end-of-process cleanup before completing the CSV.  The CSV was regenerated with
 the standalone ROOT macro `write_real_isr_stats.C`.

@@ -125,6 +125,55 @@ std::vector<double> alephEdges(const std::vector<AlephPoint>& points)
     return edges;
 }
 
+TGraphErrors* makeAlephGraph(const std::vector<AlephPoint>& aleph, const std::string& name)
+{
+    std::vector<double> ax, ay, aex, aey;
+    for (const AlephPoint& p : aleph) {
+        ax.push_back(p.center);
+        ay.push_back(p.value);
+        aex.push_back(0.5 * (p.high - p.low));
+        aey.push_back(p.err);
+    }
+    TGraphErrors* g = new TGraphErrors(ax.size(), ax.data(), ay.data(), aex.data(), aey.data());
+    g->SetName(name.c_str());
+    g->SetMarkerStyle(20);
+    g->SetMarkerSize(0.65);
+    g->SetMarkerColor(kBlack);
+    g->SetLineColor(kBlack);
+    g->SetLineWidth(1);
+    return g;
+}
+
+TGraphErrors* makeMCAlephRatioGraph(const TH1D* h,
+                                    const std::vector<AlephPoint>& aleph,
+                                    const SampleDef& s,
+                                    const std::string& name)
+{
+    std::vector<double> x, y, ex, ey;
+    const int n = std::min(h ? h->GetNbinsX() : 0, static_cast<int>(aleph.size()));
+    for (int i = 0; i < n; ++i) {
+        const AlephPoint& p = aleph[i];
+        const double mc = h->GetBinContent(i + 1);
+        const double emc = h->GetBinError(i + 1);
+        if (mc <= 0.0 || p.value <= 0.0) continue;
+        const double r = mc / p.value;
+        const double relMC = emc / mc;
+        const double relData = p.err / p.value;
+        x.push_back(p.center + s.xOffset);
+        y.push_back(r);
+        ex.push_back(0.0);
+        ey.push_back(r * std::sqrt(relMC * relMC + relData * relData));
+    }
+    TGraphErrors* g = new TGraphErrors(static_cast<int>(x.size()), x.data(), y.data(), ex.data(), ey.data());
+    g->SetName(name.c_str());
+    g->SetLineColor(s.color);
+    g->SetMarkerColor(s.color);
+    g->SetMarkerStyle(s.marker);
+    g->SetMarkerSize(0.62);
+    g->SetLineWidth(2);
+    return g;
+}
+
 void normalizeDensity(TH1D* h)
 {
     const double integral = h->Integral();
@@ -470,6 +519,117 @@ void drawThrustOffVsAleph(const std::vector<SampleDef>& samples)
     c->SaveAs(joinPath(gOutDir, "real_isr_off_thrust_vs_aleph.pdf").c_str());
 }
 
+void drawThrustVsAlephRatioPanels(const std::vector<SampleDef>& samples, bool useISRLikeSample)
+{
+    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
+    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) {
+        alephCsv = envAleph;
+    }
+    const std::vector<AlephPoint> aleph = readAleph(alephCsv);
+    const std::vector<double> edges = alephEdges(aleph);
+    TGraphErrors* gAleph = makeAlephGraph(aleph, useISRLikeSample ? "g_aleph_ratio_on" : "g_aleph_ratio_off");
+
+    const std::string suffix = useISRLikeSample ? "on" : "off";
+    TCanvas* c = new TCanvas(("c_real_thrust_aleph_ratio_" + suffix).c_str(),
+                             "real thrust vs ALEPH with ratio", 1050, 900);
+    TPad* top = new TPad(("top_aleph_ratio_" + suffix).c_str(), "top", 0.0, 0.30, 1.0, 1.0);
+    TPad* bot = new TPad(("bot_aleph_ratio_" + suffix).c_str(), "bottom", 0.0, 0.0, 1.0, 0.30);
+    top->SetLeftMargin(0.145);
+    top->SetRightMargin(0.035);
+    top->SetTopMargin(0.055);
+    top->SetBottomMargin(0.020);
+    top->SetTicks(1, 1);
+    top->SetLogy();
+    bot->SetLeftMargin(0.145);
+    bot->SetRightMargin(0.035);
+    bot->SetTopMargin(0.025);
+    bot->SetBottomMargin(0.310);
+    bot->SetTicks(1, 1);
+    top->Draw();
+    bot->Draw();
+
+    top->cd();
+    TH1D* frame = new TH1D(("frame_aleph_ratio_" + suffix).c_str(), "", 100, 0.58, 1.0);
+    frame->SetMinimum(5e-4);
+    frame->SetMaximum(45.0);
+    frame->GetXaxis()->SetLabelSize(0);
+    frame->GetYaxis()->SetTitle("(1/N) dN/dT");
+    frame->GetYaxis()->SetTitleSize(0.055);
+    frame->GetYaxis()->SetTitleOffset(1.05);
+    frame->GetYaxis()->SetLabelSize(0.044);
+    frame->Draw("AXIS");
+
+    TLegend* leg = new TLegend(0.14, 0.67, 0.58, 0.89);
+    leg->SetBorderSize(0);
+    leg->SetFillStyle(0);
+    leg->SetTextFont(42);
+    leg->SetTextSize(0.029);
+    leg->AddEntry(gAleph, "ALEPH published data", "pe");
+
+    std::vector<TGraphErrors*> ratios;
+    std::vector<std::string> drawnOffFiles;
+    for (const SampleDef& s : samples) {
+        if (!useISRLikeSample) {
+            if (std::find(drawnOffFiles.begin(), drawnOffFiles.end(), s.offFile) != drawnOffFiles.end()) continue;
+            drawnOffFiles.push_back(s.offFile);
+        }
+        const std::string histName = useISRLikeSample ? ("h_aleph_ratio_on_" + s.tag)
+                                                      : ("h_aleph_ratio_off_" + s.tag);
+        TH1D* h = makeHistEdges(useISRLikeSample ? s.onFile : s.offFile, histName, "thrust", edges);
+        normalizeDensity(h);
+        h->SetLineColor(s.color);
+        h->SetMarkerColor(s.color);
+        h->SetLineWidth(3);
+        h->SetMarkerStyle(s.marker);
+        h->SetMarkerSize(0.48);
+        h->Draw("HIST SAME");
+        leg->AddEntry(h, useISRLikeSample ? s.label.c_str() : offLegendLabel(s).c_str(), "l");
+
+        const std::string ratioName = useISRLikeSample ? ("g_mc_aleph_ratio_on_" + s.tag)
+                                                       : ("g_mc_aleph_ratio_off_" + s.tag);
+        ratios.push_back(makeMCAlephRatioGraph(h, aleph, s, ratioName));
+    }
+
+    gAleph->Draw("P SAME");
+    TLatex lat;
+    lat.SetNDC();
+    lat.SetTextFont(42);
+    lat.SetTextSize(0.034);
+    if (useISRLikeSample) {
+        lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR/QED-shower comparison");
+    } else {
+        lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR OFF baselines");
+        lat.SetTextSize(0.026);
+        lat.DrawLatex(0.58, 0.815, "Sherpa PDFESherpa and YFS share the same OFF file");
+    }
+    leg->Draw();
+    frame->Draw("AXIS SAME");
+
+    bot->cd();
+    TH1D* rframe = new TH1D(("frame_mc_aleph_ratio_" + suffix).c_str(), "", 100, 0.58, 1.0);
+    rframe->SetMinimum(0.35);
+    rframe->SetMaximum(1.65);
+    rframe->GetXaxis()->SetTitle("Thrust T");
+    rframe->GetYaxis()->SetTitle("MC / ALEPH");
+    rframe->GetXaxis()->SetTitleSize(0.105);
+    rframe->GetXaxis()->SetLabelSize(0.085);
+    rframe->GetYaxis()->SetTitleSize(0.080);
+    rframe->GetYaxis()->SetTitleOffset(0.72);
+    rframe->GetYaxis()->SetLabelSize(0.075);
+    rframe->GetYaxis()->SetNdivisions(505);
+    rframe->Draw("AXIS");
+    TLine* one = new TLine(0.58, 1.0, 1.0, 1.0);
+    one->SetLineStyle(2);
+    one->SetLineColor(kGray + 2);
+    one->SetLineWidth(2);
+    one->Draw();
+    for (TGraphErrors* g : ratios) g->Draw("LP SAME");
+    rframe->Draw("AXIS SAME");
+
+    c->SaveAs(joinPath(gOutDir, "real_isr_" + suffix + "_thrust_vs_aleph_ratio.png").c_str());
+    c->SaveAs(joinPath(gOutDir, "real_isr_" + suffix + "_thrust_vs_aleph_ratio.pdf").c_str());
+}
+
 void drawISRPhotonSpectra(const std::vector<SampleDef>& samples)
 {
     TCanvas* c = new TCanvas("c_isr_photons", "ISR photon spectra", 1200, 520);
@@ -629,9 +789,42 @@ void plot_real_isr_results()
     drawISRCorrection(samples);
     drawThrustVsAleph(samples);
     drawThrustOffVsAleph(samples);
+    drawThrustVsAlephRatioPanels(samples, true);
+    drawThrustVsAlephRatioPanels(samples, false);
     drawISRPhotonSpectra(samples);
     drawVisibleEnergy(samples);
     if (!gSystem->Getenv("ISR_SKIP_STATS")) writeStats(samples);
+}
+
+void plot_real_aleph_ratio_figures()
+{
+    if (const char* envDir = gSystem->Getenv("ISR_REAL_DIR")) {
+        gRealDir = envDir;
+        gOutDir = joinPath(gRealDir, "results");
+    }
+    if (const char* envOut = gSystem->Getenv("ISR_OUT_DIR")) {
+        gOutDir = envOut;
+    }
+    gSystem->mkdir(gOutDir.c_str(), true);
+    gStyle->SetOptStat(0);
+    TH1::AddDirectory(kFALSE);
+
+    const int colorBlue = TColor::GetColor("#0072B2");
+    const int colorVermillion = TColor::GetColor("#D55E00");
+    const int colorGreen = TColor::GetColor("#009E73");
+    const int colorPurple = TColor::GetColor("#CC79A7");
+    const int colorOrange = TColor::GetColor("#E69F00");
+
+    std::vector<SampleDef> samples = {
+        {"Herwig 7.3.0 QED shower", "Herwig730_QEDshower", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_QEDshower.root"), "QEDshower", colorBlue, 20, -0.0018},
+        {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), "ISR ON", colorVermillion, 21, -0.0009},
+        {"Sherpa 3.0.3 PDFESherpa", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), "ISR ON (PDFESherpa)", colorGreen, 23, 0.0000},
+        {"Sherpa 3.0.3 YFS", "Sherpa303_YFS", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_YFS.root"), "ISR ON (YFS)", colorPurple, 34, 0.0009},
+        {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), "ISR ON", colorOrange, 22, 0.0018}
+    };
+
+    drawThrustVsAlephRatioPanels(samples, true);
+    drawThrustVsAlephRatioPanels(samples, false);
 }
 
 void plot_real_isr_off_thrust_vs_aleph()

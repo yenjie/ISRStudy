@@ -112,6 +112,13 @@ Regenerate the real-generator plots:
 ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 root -l -b -q macros/plot_real_isr_results.C
 ```
 
+Regenerate only the ALEPH thrust comparison figures with `MC / ALEPH` ratio
+panels:
+
+```bash
+ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 root -l -b -q -e 'gROOT->LoadMacro("macros/plot_real_isr_results.C"); plot_real_aleph_ratio_figures();'
+```
+
 The old slide macro still runs with:
 
 ```bash
@@ -147,7 +154,9 @@ mc_Pythia8315_Vincia_ISR_ON.root
 mc_Pythia8315_Vincia_ISR_OFF.root
 results/real_isr_correction_double_ratio.png
 results/real_isr_on_thrust_vs_aleph.png
+results/real_isr_on_thrust_vs_aleph_ratio.png
 results/real_isr_off_thrust_vs_aleph.png
+results/real_isr_off_thrust_vs_aleph_ratio.png
 results/real_isr_photon_energy_theta_spectra.png
 results/real_generator_sample_statistics.csv
 results/isr_correction_studies_reproduction.png
