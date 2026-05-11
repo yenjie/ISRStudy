@@ -147,6 +147,7 @@ mc_Pythia8315_Vincia_ISR_ON.root
 mc_Pythia8315_Vincia_ISR_OFF.root
 results/real_isr_correction_double_ratio.png
 results/real_isr_on_thrust_vs_aleph.png
+results/real_isr_off_thrust_vs_aleph.png
 results/real_isr_photon_energy_theta_spectra.png
 results/real_generator_sample_statistics.csv
 results/isr_correction_studies_reproduction.png

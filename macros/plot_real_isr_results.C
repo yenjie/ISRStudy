@@ -12,6 +12,8 @@
 #include <TStyle.h>
 #include <TSystem.h>
 #include <TTree.h>
+#include <TTreeReader.h>
+#include <TTreeReaderValue.h>
 
 #include <algorithm>
 #include <cmath>
@@ -47,6 +49,44 @@ std::string gOutDir = "/data2/yjlee/ISRsample/real_20260510/results";
 std::string joinPath(const std::string& dir, const std::string& name)
 {
     return dir + "/" + name;
+}
+
+constexpr double kVisibleEtaMax = 1.74;
+
+bool isNeutrinoPdg(int pdg)
+{
+    const int apdg = std::abs(pdg);
+    return apdg == 12 || apdg == 14 || apdg == 16;
+}
+
+double etaFromMomentum(double px, double py, double pz)
+{
+    const double p = std::sqrt(px * px + py * py + pz * pz);
+    if (p <= 1e-12) return 1e9;
+    const double plus = p + pz;
+    const double minus = p - pz;
+    if (plus <= 0.0) return -1e9;
+    if (minus <= 0.0) return 1e9;
+    return 0.5 * std::log(plus / minus);
+}
+
+double acceptedVisibleEnergy(const std::vector<int>& pdgId,
+                             const std::vector<float>& px,
+                             const std::vector<float>& py,
+                             const std::vector<float>& pz,
+                             const std::vector<float>& energy,
+                             const std::vector<char>& isFinal)
+{
+    double evis = 0.0;
+    const size_t n = pdgId.size();
+    for (size_t i = 0; i < n; ++i) {
+        if (!isFinal[i]) continue;
+        if (isNeutrinoPdg(pdgId[i])) continue;
+        const double eta = etaFromMomentum(px[i], py[i], pz[i]);
+        if (std::abs(eta) >= kVisibleEtaMax) continue;
+        evis += energy[i];
+    }
+    return evis;
 }
 
 std::vector<AlephPoint> readAleph(const std::string& filename)
@@ -110,6 +150,34 @@ TH1D* makeHist(const std::string& filename, const std::string& name, const std::
     h->Sumw2();
     h->SetDirectory(gROOT);
     t->Draw((expr + ">>" + name).c_str(), selection.c_str(), "goff");
+    h->SetDirectory(0);
+    return h;
+}
+
+TH1D* makeVisibleEnergyHist(const std::string& filename, const std::string& name,
+                            int nbins, double xmin, double xmax)
+{
+    TFile f(filename.c_str());
+    TTree* t = static_cast<TTree*>(f.Get("Events"));
+    if (!t) {
+        std::cerr << "Missing Events tree in " << filename << std::endl;
+        return nullptr;
+    }
+    gROOT->cd();
+    TH1D* h = new TH1D(name.c_str(), "", nbins, xmin, xmax);
+    h->Sumw2();
+    h->SetDirectory(gROOT);
+
+    TTreeReader reader(t);
+    TTreeReaderValue<std::vector<int>> pdgId(reader, "pdgId");
+    TTreeReaderValue<std::vector<float>> px(reader, "px");
+    TTreeReaderValue<std::vector<float>> py(reader, "py");
+    TTreeReaderValue<std::vector<float>> pz(reader, "pz");
+    TTreeReaderValue<std::vector<float>> energy(reader, "energy");
+    TTreeReaderValue<std::vector<char>> isFinal(reader, "isFinal");
+    while (reader.Next()) {
+        h->Fill(acceptedVisibleEnergy(*pdgId, *px, *py, *pz, *energy, *isFinal));
+    }
     h->SetDirectory(0);
     return h;
 }
@@ -325,6 +393,83 @@ void drawThrustVsAleph(const std::vector<SampleDef>& samples)
     c->SaveAs(joinPath(gOutDir, "real_isr_on_thrust_vs_aleph.pdf").c_str());
 }
 
+std::string offLegendLabel(const SampleDef& s)
+{
+    if (s.tag == "Herwig730_QEDshower") return "Herwig 7.3.0 ISR OFF";
+    if (s.tag == "Sherpa303") return "Sherpa 3.0.3 ISR OFF";
+    return s.label + " ISR OFF";
+}
+
+void drawThrustOffVsAleph(const std::vector<SampleDef>& samples)
+{
+    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
+    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) {
+        alephCsv = envAleph;
+    }
+    const std::vector<AlephPoint> aleph = readAleph(alephCsv);
+    const std::vector<double> edges = alephEdges(aleph);
+    std::vector<double> ax, ay, aex, aey;
+    for (const AlephPoint& p : aleph) {
+        ax.push_back(p.center);
+        ay.push_back(p.value);
+        aex.push_back(0.5 * (p.high - p.low));
+        aey.push_back(p.err);
+    }
+    TGraphErrors* gAleph = new TGraphErrors(ax.size(), ax.data(), ay.data(), aex.data(), aey.data());
+    gAleph->SetMarkerStyle(20);
+    gAleph->SetMarkerSize(0.65);
+    gAleph->SetMarkerColor(kBlack);
+    gAleph->SetLineColor(kBlack);
+
+    TCanvas* c = new TCanvas("c_real_thrust_aleph_off", "real ISR OFF thrust vs ALEPH", 1050, 900);
+    c->SetLogy();
+    c->SetLeftMargin(0.145);
+    c->SetRightMargin(0.035);
+    c->SetTopMargin(0.055);
+    c->SetBottomMargin(0.105);
+    c->SetTicks(1, 1);
+    TH1D* frame = new TH1D("frame_aleph_off", "", 100, 0.58, 1.0);
+    frame->SetMinimum(5e-4);
+    frame->SetMaximum(45.0);
+    frame->GetXaxis()->SetTitle("Thrust T");
+    frame->GetYaxis()->SetTitle("(1/N) dN/dT");
+    frame->GetYaxis()->SetTitleOffset(1.10);
+    frame->Draw("AXIS");
+    gAleph->Draw("P SAME");
+    TLegend* leg = new TLegend(0.14, 0.68, 0.58, 0.89);
+    leg->SetBorderSize(0);
+    leg->SetFillStyle(0);
+    leg->SetTextFont(42);
+    leg->SetTextSize(0.030);
+    leg->AddEntry(gAleph, "ALEPH published data", "pe");
+
+    std::vector<std::string> drawnOffFiles;
+    for (const SampleDef& s : samples) {
+        if (std::find(drawnOffFiles.begin(), drawnOffFiles.end(), s.offFile) != drawnOffFiles.end()) continue;
+        drawnOffFiles.push_back(s.offFile);
+        TH1D* h = makeHistEdges(s.offFile, "h_aleph_off_" + s.tag, "thrust", edges);
+        normalizeDensity(h);
+        h->SetLineColor(s.color);
+        h->SetMarkerColor(s.color);
+        h->SetLineWidth(3);
+        h->SetMarkerStyle(s.marker);
+        h->SetMarkerSize(0.48);
+        h->Draw("HIST SAME");
+        leg->AddEntry(h, offLegendLabel(s).c_str(), "l");
+    }
+    TLatex lat;
+    lat.SetNDC();
+    lat.SetTextFont(42);
+    lat.SetTextSize(0.034);
+    lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR OFF baselines");
+    lat.SetTextSize(0.026);
+    lat.DrawLatex(0.58, 0.815, "Sherpa PDFESherpa and YFS share the same OFF file");
+    leg->Draw();
+    frame->Draw("AXIS SAME");
+    c->SaveAs(joinPath(gOutDir, "real_isr_off_thrust_vs_aleph.png").c_str());
+    c->SaveAs(joinPath(gOutDir, "real_isr_off_thrust_vs_aleph.pdf").c_str());
+}
+
 void drawISRPhotonSpectra(const std::vector<SampleDef>& samples)
 {
     TCanvas* c = new TCanvas("c_isr_photons", "ISR photon spectra", 1200, 520);
@@ -378,8 +523,8 @@ void drawVisibleEnergy(const std::vector<SampleDef>& samples)
     for (const SampleDef& s : samples) {
         TCanvas* c = new TCanvas(("c_evis_" + s.tag).c_str(), "visible energy", 850, 650);
         c->SetTicks(1, 1);
-        TH1D* hOff = makeHist(s.offFile, "h_evis_off_" + s.tag, "visibleEnergy", 80, 0.0, 100.0);
-        TH1D* hOn = makeHist(s.onFile, "h_evis_on_" + s.tag, "visibleEnergy", 80, 0.0, 100.0);
+        TH1D* hOff = makeVisibleEnergyHist(s.offFile, "h_evis_off_" + s.tag, 80, 0.0, 100.0);
+        TH1D* hOn = makeVisibleEnergyHist(s.onFile, "h_evis_on_" + s.tag, 80, 0.0, 100.0);
         normalizeDensity(hOff);
         normalizeDensity(hOn);
         hOff->SetLineColor(kBlack);
@@ -387,7 +532,7 @@ void drawVisibleEnergy(const std::vector<SampleDef>& samples)
         hOn->SetLineColor(s.color);
         hOn->SetLineWidth(3);
         hOff->SetMaximum(std::max(hOff->GetMaximum(), hOn->GetMaximum()) * 1.25);
-        hOff->GetXaxis()->SetTitle("Visible energy E_{vis} [GeV]");
+        hOff->GetXaxis()->SetTitle("Visible energy E_{vis} (|#eta|<1.74) [GeV]");
         hOff->GetYaxis()->SetTitle("normalized entries");
         hOff->Draw("HIST");
         hOn->Draw("HIST SAME");
@@ -421,13 +566,34 @@ void writeStats(const std::vector<SampleDef>& samples)
         for (const auto& modeFile : {std::make_pair(std::string("OFF"), s.offFile), std::make_pair(s.onLabel, s.onFile)}) {
             TFile f(modeFile.second.c_str());
             TTree* t = static_cast<TTree*>(f.Get("Events"));
-            auto mean = [&](const char* x) {
-                t->Draw(x, "", "goff");
-                return TMath::Mean(t->GetSelectedRows(), t->GetV1());
-            };
+            TTreeReader reader(t);
+            TTreeReaderValue<double> thrust(reader, "thrust");
+            TTreeReaderValue<int> nISRPhotons(reader, "nISRPhotons");
+            TTreeReaderValue<double> totalISRPhotonEnergy(reader, "totalISRPhotonEnergy");
+            TTreeReaderValue<std::vector<int>> pdgId(reader, "pdgId");
+            TTreeReaderValue<std::vector<float>> px(reader, "px");
+            TTreeReaderValue<std::vector<float>> py(reader, "py");
+            TTreeReaderValue<std::vector<float>> pz(reader, "pz");
+            TTreeReaderValue<std::vector<float>> energy(reader, "energy");
+            TTreeReaderValue<std::vector<char>> isFinal(reader, "isFinal");
+            Long64_t entries = 0;
+            long double sumThrust = 0.0;
+            long double sumVisibleEnergy = 0.0;
+            long double sumNISRPhotons = 0.0;
+            long double sumISRPhotonEnergy = 0.0;
+            while (reader.Next()) {
+                ++entries;
+                sumThrust += *thrust;
+                sumVisibleEnergy += acceptedVisibleEnergy(*pdgId, *px, *py, *pz, *energy, *isFinal);
+                sumNISRPhotons += *nISRPhotons;
+                sumISRPhotonEnergy += *totalISRPhotonEnergy;
+            }
+            const long double denom = entries > 0 ? entries : 1;
             out << s.label << "," << modeFile.first << "," << t->GetEntries() << ","
-                << mean("thrust") << "," << mean("visibleEnergy") << ","
-                << mean("nISRPhotons") << "," << mean("totalISRPhotonEnergy") << ","
+                << static_cast<double>(sumThrust / denom) << ","
+                << static_cast<double>(sumVisibleEnergy / denom) << ","
+                << static_cast<double>(sumNISRPhotons / denom) << ","
+                << static_cast<double>(sumISRPhotonEnergy / denom) << ","
                 << modeFile.second << "\n";
         }
     }
@@ -462,7 +628,38 @@ void plot_real_isr_results()
 
     drawISRCorrection(samples);
     drawThrustVsAleph(samples);
+    drawThrustOffVsAleph(samples);
     drawISRPhotonSpectra(samples);
     drawVisibleEnergy(samples);
     if (!gSystem->Getenv("ISR_SKIP_STATS")) writeStats(samples);
+}
+
+void plot_real_isr_off_thrust_vs_aleph()
+{
+    if (const char* envDir = gSystem->Getenv("ISR_REAL_DIR")) {
+        gRealDir = envDir;
+        gOutDir = joinPath(gRealDir, "results");
+    }
+    if (const char* envOut = gSystem->Getenv("ISR_OUT_DIR")) {
+        gOutDir = envOut;
+    }
+    gSystem->mkdir(gOutDir.c_str(), true);
+    gStyle->SetOptStat(0);
+    TH1::AddDirectory(kFALSE);
+
+    const int colorBlue = TColor::GetColor("#0072B2");
+    const int colorVermillion = TColor::GetColor("#D55E00");
+    const int colorGreen = TColor::GetColor("#009E73");
+    const int colorPurple = TColor::GetColor("#CC79A7");
+    const int colorOrange = TColor::GetColor("#E69F00");
+
+    std::vector<SampleDef> samples = {
+        {"Herwig 7.3.0 QED shower", "Herwig730_QEDshower", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_QEDshower.root"), "QEDshower", colorBlue, 20, -0.0018},
+        {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), "ISR ON", colorVermillion, 21, -0.0009},
+        {"Sherpa 3.0.3 PDFESherpa", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), "ISR ON (PDFESherpa)", colorGreen, 23, 0.0000},
+        {"Sherpa 3.0.3 YFS", "Sherpa303_YFS", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_YFS.root"), "ISR ON (YFS)", colorPurple, 34, 0.0009},
+        {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), "ISR ON", colorOrange, 22, 0.0018}
+    };
+
+    drawThrustOffVsAleph(samples);
 }

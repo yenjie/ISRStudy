@@ -52,12 +52,14 @@ Each generated ROOT file contains one `TTree` named `Events`.
 The default `SelectionConfig` is:
 
 ```cpp
-includeISRPhotonsInVisibleEnergy = false;
+includeISRPhotonsInVisibleEnergy = true;
 includeISRPhotonsInEventShapes = false;
 useChargedParticlesOnly = false;
+visibleEtaMax = 1.74;
 ```
 
-Visible energy and event-shape calculations exclude neutrinos.  ISR photons are
-stored in the event record but are excluded from visible energy and event shapes
-unless the selection flags are changed.
-
+Visible energy is the scalar energy sum of final-state particles within
+`|eta| < 1.74`, excluding neutrinos and including photons.  Event-shape
+calculations exclude neutrinos and, by default, particles flagged as ISR
+photons.  ISR photons are stored in the event record so either convention can be
+recomputed from the particle arrays.

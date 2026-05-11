@@ -42,9 +42,10 @@ struct Options {
 };
 
 struct SelectionConfig {
-    bool includeISRPhotonsInVisibleEnergy = false;
+    bool includeISRPhotonsInVisibleEnergy = true;
     bool includeISRPhotonsInEventShapes = false;
     bool useChargedParticlesOnly = false;
+    double visibleEtaMax = 1.74;
 };
 
 struct EventBranches {
@@ -205,7 +206,10 @@ double computeVisibleEnergy(const EventBranches& b, const SelectionConfig& confi
         if (isNeutrino(b.pdgId[i])) continue;
         if (!config.includeISRPhotonsInVisibleEnergy && b.isISRPhoton[i]) continue;
         if (config.useChargedParticlesOnly && !b.isCharged[i]) continue;
-        evis += b.energy[i];
+        TLorentzVector p4(b.px[i], b.py[i], b.pz[i], b.energy[i]);
+        if (p4.P() <= 1e-9) continue;
+        if (config.visibleEtaMax > 0.0 && std::abs(p4.Eta()) >= config.visibleEtaMax) continue;
+        evis += p4.E();
     }
     return evis;
 }

@@ -163,20 +163,21 @@ Summary file:
 /data2/yjlee/ISRsample/real_3M_20260511/results/real_generator_sample_statistics.csv
 ```
 
-Key means from the 3M production:
+Key means from the 3M production after recomputing visible energy from
+final-state non-neutrino particles within `|eta| < 1.74`, including photons:
 
 | sample | mode | entries | mean thrust | mean visible energy [GeV] | mean ISR photons | mean ISR photon energy [GeV] |
 |---|---:|---:|---:|---:|---:|---:|
-| Herwig 7.3.0 QED shower | OFF | 3000000 | 0.94003 | 89.66 | 0.000 | 0.000 |
-| Herwig 7.3.0 QED shower | QEDshower | 3000000 | 0.94040 | 89.14 | 0.545 | 0.518 |
-| PYTHIA 8.315 | OFF | 3000000 | 0.93197 | 89.48 | 0.000 | 0.000 |
-| PYTHIA 8.315 | ISR ON | 3000000 | 0.93163 | 89.34 | 2.730 | 0.202 |
-| Sherpa 3.0.3 PDFESherpa | OFF | 3000000 | 0.93395 | 89.61 | 0.000 | 0.000 |
-| Sherpa 3.0.3 PDFESherpa | ISR ON | 3000000 | 0.93598 | 66.83 | 17.826 | 22.785 |
-| Sherpa 3.0.3 YFS | OFF | 3000000 | 0.93395 | 89.61 | 0.000 | 0.000 |
-| Sherpa 3.0.3 YFS | ISR ON | 3000000 | 0.93593 | 66.78 | 17.932 | 22.836 |
-| PYTHIA 8.315 (Vincia) | OFF | 3000000 | 0.93277 | 89.52 | 0.000 | 0.000 |
-| PYTHIA 8.315 (Vincia) | ISR ON | 3000000 | 0.93265 | 89.32 | 2.003 | 0.202 |
+| Herwig 7.3.0 QED shower | OFF | 3000000 | 0.94003 | 82.04 | 0.000 | 0.000 |
+| Herwig 7.3.0 QED shower | QEDshower | 3000000 | 0.94040 | 82.05 | 0.545 | 0.518 |
+| PYTHIA 8.315 | OFF | 3000000 | 0.93197 | 82.11 | 0.000 | 0.000 |
+| PYTHIA 8.315 | ISR ON | 3000000 | 0.93163 | 81.99 | 2.730 | 0.202 |
+| Sherpa 3.0.3 PDFESherpa | OFF | 3000000 | 0.93395 | 82.22 | 0.000 | 0.000 |
+| Sherpa 3.0.3 PDFESherpa | ISR ON | 3000000 | 0.93598 | 82.04 | 17.826 | 22.785 |
+| Sherpa 3.0.3 YFS | OFF | 3000000 | 0.93395 | 82.22 | 0.000 | 0.000 |
+| Sherpa 3.0.3 YFS | ISR ON | 3000000 | 0.93593 | 82.07 | 17.932 | 22.836 |
+| PYTHIA 8.315 (Vincia) | OFF | 3000000 | 0.93277 | 82.16 | 0.000 | 0.000 |
+| PYTHIA 8.315 (Vincia) | ISR ON | 3000000 | 0.93265 | 81.96 | 2.003 | 0.202 |
 
 ## Superseded 100k sample statistics
 
