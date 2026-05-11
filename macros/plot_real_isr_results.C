@@ -261,7 +261,11 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
 
 void drawThrustVsAleph(const std::vector<SampleDef>& samples)
 {
-    const std::vector<AlephPoint> aleph = readAleph("/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv");
+    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
+    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) {
+        alephCsv = envAleph;
+    }
+    const std::vector<AlephPoint> aleph = readAleph(alephCsv);
     const std::vector<double> edges = alephEdges(aleph);
     std::vector<double> ax, ay, aex, aey;
     for (const AlephPoint& p : aleph) {
@@ -429,6 +433,13 @@ void writeStats(const std::vector<SampleDef>& samples)
 
 void plot_real_isr_results()
 {
+    if (const char* envDir = gSystem->Getenv("ISR_REAL_DIR")) {
+        gRealDir = envDir;
+        gOutDir = joinPath(gRealDir, "results");
+    }
+    if (const char* envOut = gSystem->Getenv("ISR_OUT_DIR")) {
+        gOutDir = envOut;
+    }
     gSystem->mkdir(gOutDir.c_str(), true);
     gStyle->SetOptStat(0);
     TH1::AddDirectory(kFALSE);

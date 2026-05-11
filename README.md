@@ -25,6 +25,8 @@ particle-level observables, and parton-level observables.
 - `scripts/run_real_isr_production.sh`: real standalone generator production
   wrapper for PYTHIA 8.315, PYTHIA 8.315 (Vincia), Herwig 7.3.0, and Sherpa
   3.0.3.
+- `scripts/run_real_isr_production_10worker.sh`: worker-capped launcher used
+  for the 100k validation and larger parallel productions.
 - `scripts/run_isr_production.sh`: legacy wrapper for plot-only reruns from
   the older macro workflow.
 - `scripts/test_isr_macro.sh`: smoke test that generates tiny temporary samples,
@@ -46,7 +48,7 @@ The current real-generator validation production is stored on the analysis
 machine at:
 
 ```text
-/data2/yjlee/ISRsample/real_20260510
+/data2/yjlee/ISRsample/real_100k_20260511
 ```
 
 It contains eight ROOT files produced from real standalone generators:
@@ -56,7 +58,7 @@ It contains eight ROOT files produced from real standalone generators:
 - Herwig 7.3.0
 - Sherpa 3.0.3
 - ISR ON and ISR OFF for each configuration
-- `20,000` events per file in the validation refresh
+- `100,000` events per file in the validation refresh
 
 The old fallback samples and the old 5M archive were removed from
 `/data2/yjlee/ISRsample` to avoid confusion.
@@ -78,13 +80,13 @@ Build the real-generator producer:
 Run the real-generator validation production:
 
 ```bash
-EVENTS=20000 OUTDIR=/data2/yjlee/ISRsample/real_20260510 TARGETS=all FORCE=1 ./scripts/run_real_isr_production.sh
+EVENTS=100000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_100k_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
 ```
 
 Regenerate the real-generator plots:
 
 ```bash
-root -l -b -q macros/plot_real_isr_results.C
+ISR_REAL_DIR=/data2/yjlee/ISRsample/real_100k_20260511 root -l -b -q macros/plot_real_isr_results.C
 ```
 
 The old slide macro still runs with:
@@ -122,6 +124,7 @@ mc_Pythia8315_Vincia_ISR_OFF.root
 results/real_isr_correction_double_ratio.png
 results/real_isr_on_thrust_vs_aleph.png
 results/real_isr_photon_energy_theta_spectra.png
+results/isr_correction_studies_reproduction.png
 ```
 
 Each ROOT file contains a `TTree` named `Events`.

@@ -180,23 +180,35 @@ run_sherpa() {
   echo "[done] $out"
 }
 
-if contains_target pythia; then
+if contains_target pythia || contains_target pythia-off; then
   run_pythia Pythia8315 PYTHIA8315 2 0 0 1200510
+fi
+
+if contains_target pythia || contains_target pythia-on; then
   run_pythia Pythia8315 PYTHIA8315 2 1 0 1200511
 fi
 
-if contains_target pythia-vincia; then
+if contains_target pythia-vincia || contains_target pythia-vincia-off; then
   run_pythia Pythia8315_Vincia Pythia8315_Vincia 4 0 1 1200520
+fi
+
+if contains_target pythia-vincia || contains_target pythia-vincia-on; then
   run_pythia Pythia8315_Vincia Pythia8315_Vincia 4 1 1 1200521
 fi
 
-if contains_target herwig; then
+if contains_target herwig || contains_target herwig-off; then
   run_herwig 0 1300510
+fi
+
+if contains_target herwig || contains_target herwig-on; then
   run_herwig 1 1300511
 fi
 
-if contains_target sherpa; then
+if contains_target sherpa || contains_target sherpa-off; then
   run_sherpa 0 1400510
+fi
+
+if contains_target sherpa || contains_target sherpa-on; then
   run_sherpa 1 1400511
 fi
 

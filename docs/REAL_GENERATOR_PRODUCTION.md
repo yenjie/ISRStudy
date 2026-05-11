@@ -1,7 +1,8 @@
 # Real-generator ISR production status
 
 Date: 2026-05-10  
-Output directory: `/data2/yjlee/ISRsample/real_20260510`
+Latest validation directory: `/data2/yjlee/ISRsample/real_100k_20260511`  
+Previous 20k directory: `/data2/yjlee/ISRsample/real_20260510`
 
 ## Goal
 
@@ -12,7 +13,7 @@ Replace the previous toy fallback samples with reusable ROOT ntuples produced fr
 All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/yjlee/ISRsample`.  The old `5M_20260509` toy archive was also removed.  The current real-generator validation samples live under:
 
 ```text
-/data2/yjlee/ISRsample/real_20260510/
+/data2/yjlee/ISRsample/real_100k_20260511/
 ```
 
 ## Real generators and references
@@ -23,6 +24,11 @@ All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/
 - Sherpa 3.0.3, using the local standalone binary at `/data/yjlee/OnePointChargeCorrelator/external/sherpa-3.0.3-build/outputs/bin/Sherpa`.  Reference: Sherpa 3 release paper, JHEP 2024, 156, <https://doi.org/10.1007/JHEP12(2024)156>; Sherpa release/download documentation, <https://sherpa-team.gitlab.io/changelog.html>.
 
 ## ISR on/off definitions
+
+The production was audited so the generator/process, beam energy, hadronization,
+decays, output schema, and event selection are held fixed within each generator
+pair.  The only intended ON/OFF changes are the generator-specific ISR controls
+listed below.
 
 - PYTHIA ISR OFF:
   - `PDF:lepton = off`
@@ -35,18 +41,31 @@ All old toy `mc_*.root` samples and toy-derived plots were removed from `/data2/
 - Herwig ISR ON restores the built-in lepton PDFs for the shower:
   - `/Herwig/Shower/ShowerHandler:PDFA = /Herwig/Partons/LeptonPDF`
   - `/Herwig/Shower/ShowerHandler:PDFB = /Herwig/Partons/LeptonPDF`
-- Sherpa ISR OFF uses `PDF_LIBRARY: None` and `11 -11 -> 93 93`.
+- Sherpa ISR OFF uses `PDF_LIBRARY: None`, `11 -11 -> 93 93`, and the same
+  `PARTICLE_DATA: 11: Massive: true` setting as ISR ON.
 - Sherpa ISR ON uses the installed LEP YFS pattern:
   - `YFS: MODE: ISR`
-  - electron mass enabled in `PARTICLE_DATA`
+
+After the audit, the actual Sherpa OFF/ON card diff is only:
+
+```diff
++YFS:
++  MODE: ISR
+```
+
+The local ALEPH agentic ISR correction uses precomputed PYTHIA 8 files,
+`Isr/isr0_ALL.root` and `Isr/isr1_ALL.root`, with `tgenBefore/thrust`.  It is
+not a Sherpa ISR correction.  Those files contain 2.5M entries each and show
+`sqrt_sHat` fixed at `91.1876 GeV` for ISR OFF, while ISR ON has reduced
+`sqrt_sHat` from photon radiation.
 
 ## Production command
 
 ```bash
-EVENTS=20000 OUTDIR=/data2/yjlee/ISRsample/real_20260510 TARGETS=all FORCE=1 ./scripts/run_real_isr_production.sh
+EVENTS=100000 MAX_WORKERS=15 OUTDIR=/data2/yjlee/ISRsample/real_100k_20260511 FORCE=0 ./scripts/run_real_isr_production_10worker.sh
 ```
 
-The event count is intentionally configurable.  The 20k/event-mode sample is a validation refresh; larger 5M or 20M production should use the same script after accepting the generator-specific ISR settings.
+The event count is intentionally configurable.  The 100k/event-mode sample is a validation refresh; larger 2M, 5M, or 20M production should use the same ISR definitions after accepting the generator-specific ISR settings.  The wrapper name still contains `10worker`, but the current invocation honors `MAX_WORKERS=15`.
 
 ## Produced ROOT ntuples
 
@@ -68,21 +87,21 @@ mc_Pythia8315_Vincia_ISR_ON.root
 Summary file:
 
 ```text
-/data2/yjlee/ISRsample/real_20260510/results/real_generator_sample_statistics.csv
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_generator_sample_statistics.csv
 ```
 
-Key means from the 20k/event-mode validation set:
+Key means from the 100k/event-mode validation set:
 
 | sample | ISR | entries | mean thrust | mean visible energy [GeV] | mean ISR photons | mean ISR photon energy [GeV] |
 |---|---:|---:|---:|---:|---:|---:|
-| Herwig 7.3.0 | OFF | 20000 | 0.93946 | 89.65 | 0.000 | 0.000 |
-| Herwig 7.3.0 | ON | 20000 | 0.93983 | 89.17 | 0.543 | 0.513 |
-| PYTHIA 8.315 | OFF | 20000 | 0.93159 | 89.48 | 0.000 | 0.000 |
-| PYTHIA 8.315 | ON | 20000 | 0.93205 | 89.32 | 2.731 | 0.212 |
-| Sherpa 3.0.3 | OFF | 20000 | 0.93408 | 89.59 | 0.000 | 0.000 |
-| Sherpa 3.0.3 | ON | 20000 | 0.93565 | 66.69 | 17.972 | 22.98 |
-| PYTHIA 8.315 (Vincia) | OFF | 20000 | 0.93297 | 89.51 | 0.000 | 0.000 |
-| PYTHIA 8.315 (Vincia) | ON | 20000 | 0.93258 | 89.33 | 2.004 | 0.198 |
+| Herwig 7.3.0 | OFF | 100000 | 0.93958 | 89.67 | 0.000 | 0.000 |
+| Herwig 7.3.0 | ON | 100000 | 0.94030 | 89.18 | 0.543 | 0.509 |
+| PYTHIA 8.315 | OFF | 100000 | 0.93162 | 89.49 | 0.000 | 0.000 |
+| PYTHIA 8.315 | ON | 100000 | 0.93173 | 89.36 | 2.733 | 0.206 |
+| Sherpa 3.0.3 | OFF | 100000 | 0.93394 | 89.63 | 0.000 | 0.000 |
+| Sherpa 3.0.3 | ON | 100000 | 0.93606 | 66.82 | 17.929 | 22.822 |
+| PYTHIA 8.315 (Vincia) | OFF | 100000 | 0.93267 | 89.52 | 0.000 | 0.000 |
+| PYTHIA 8.315 (Vincia) | ON | 100000 | 0.93245 | 89.33 | 2.003 | 0.206 |
 
 Sherpa YFS ISR is visibly much stronger than the PYTHIA and Herwig configurations in this validation sample.  Treat that as a configuration item to review before committing CPU/storage to a 20M-event run.
 
@@ -91,13 +110,14 @@ Sherpa YFS ISR is visibly much stronger than the PYTHIA and Herwig configuration
 All plots are made by reading the new ROOT ntuples:
 
 ```text
-/data2/yjlee/ISRsample/real_20260510/results/real_isr_correction_double_ratio.png
-/data2/yjlee/ISRsample/real_20260510/results/real_isr_on_thrust_vs_aleph.png
-/data2/yjlee/ISRsample/real_20260510/results/real_isr_photon_energy_theta_spectra.png
-/data2/yjlee/ISRsample/real_20260510/results/real_visible_energy_Herwig730_ISR_ON_OFF.png
-/data2/yjlee/ISRsample/real_20260510/results/real_visible_energy_Pythia8315_ISR_ON_OFF.png
-/data2/yjlee/ISRsample/real_20260510/results/real_visible_energy_Sherpa303_ISR_ON_OFF.png
-/data2/yjlee/ISRsample/real_20260510/results/real_visible_energy_Pythia8315_Vincia_ISR_ON_OFF.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/isr_correction_studies_reproduction.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_isr_correction_double_ratio.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_isr_on_thrust_vs_aleph.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_isr_photon_energy_theta_spectra.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Herwig730_ISR_ON_OFF.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Pythia8315_ISR_ON_OFF.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Sherpa303_ISR_ON_OFF.png
+/data2/yjlee/ISRsample/real_100k_20260511/results/real_visible_energy_Pythia8315_Vincia_ISR_ON_OFF.png
 ```
 
 ## Code entry points
