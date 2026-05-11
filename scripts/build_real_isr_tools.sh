@@ -14,3 +14,10 @@ g++ -std=c++17 -O2 src/real_isr_ntuple_producer.cc \
   -o real_isr_ntuple_producer
 
 echo "[done] built $REPO_ROOT/real_isr_ntuple_producer"
+
+g++ -std=c++17 -O2 src/make_endpoint_diagnostics.cc \
+  -I"$("$ROOT_CONFIG" --incdir)" \
+  $("$ROOT_CONFIG" --libs) \
+  -o make_endpoint_diagnostics
+
+echo "[done] built $REPO_ROOT/make_endpoint_diagnostics"

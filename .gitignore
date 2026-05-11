@@ -5,6 +5,7 @@
 *.out
 *.toc
 real_isr_ntuple_producer
+make_endpoint_diagnostics
 
 # Local smoke-test directories
 isrstudy_smoke_*/

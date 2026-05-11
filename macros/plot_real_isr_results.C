@@ -45,6 +45,8 @@ struct AlephPoint {
 
 std::string gRealDir = "/data2/yjlee/ISRsample/real_3M_20260511";
 std::string gOutDir = "/data2/yjlee/ISRsample/real_3M_20260511/results";
+std::string gDiagDir = "/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics";
+std::string gNominalThrustBranch = "T_lab_allFinal_including_ISR_photons";
 
 std::string joinPath(const std::string& dir, const std::string& name)
 {
@@ -122,6 +124,21 @@ std::vector<double> alephEdges(const std::vector<AlephPoint>& points)
     if (points.empty()) return edges;
     edges.push_back(points.front().low);
     for (const AlephPoint& p : points) edges.push_back(p.high);
+    return edges;
+}
+
+std::string alephThrustCsv()
+{
+    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
+    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) alephCsv = envAleph;
+    return alephCsv;
+}
+
+std::vector<double> alephThrustEdges()
+{
+    std::vector<double> edges = alephEdges(readAleph(alephThrustCsv()));
+    if (edges.size() > 1) return edges;
+    for (int i = 0; i <= 42; ++i) edges.push_back(0.58 + 0.01 * i);
     return edges;
 }
 
@@ -249,10 +266,48 @@ TH1D* makeHistEdges(const std::string& filename, const std::string& name, const 
     return h;
 }
 
+std::string endpointTag(const SampleDef& s, bool useOn)
+{
+    if (useOn) return s.tag;
+    if (s.tag == "Herwig730_QEDshower") return "Herwig730_OFF";
+    if (s.tag == "Pythia8315") return "Pythia8315_OFF";
+    if (s.tag == "Sherpa303" || s.tag == "Sherpa303_YFS") return "Sherpa303_OFF";
+    if (s.tag == "Pythia8315_Vincia") return "Pythia8315_Vincia_OFF";
+    return s.tag + "_OFF";
+}
+
+std::string endpointFile(const SampleDef& s, bool useOn)
+{
+    return joinPath(gDiagDir, "endpoint_diagnostics_" + endpointTag(s, useOn) + ".root");
+}
+
+TH1D* makeEndpointThrustHistEdges(const SampleDef& s,
+                                  bool useOn,
+                                  const std::string& name,
+                                  const std::vector<double>& edges,
+                                  const std::string& branch = "")
+{
+    const std::string filename = endpointFile(s, useOn);
+    TFile f(filename.c_str());
+    TTree* t = static_cast<TTree*>(f.Get("EndpointDiagnostics"));
+    if (!t) {
+        std::cerr << "Missing EndpointDiagnostics tree in " << filename << std::endl;
+        return nullptr;
+    }
+    gROOT->cd();
+    TH1D* h = new TH1D(name.c_str(), "", static_cast<int>(edges.size()) - 1, edges.data());
+    h->Sumw2();
+    h->SetDirectory(gROOT);
+    const std::string drawBranch = branch.empty() ? gNominalThrustBranch : branch;
+    t->Draw((drawBranch + ">>" + name).c_str(), "", "goff");
+    h->SetDirectory(0);
+    return h;
+}
+
 TGraphErrors* makeCorrectionGraph(const SampleDef& s, const std::vector<double>& edges)
 {
-    TH1D* hOff = makeHistEdges(s.offFile, "h_off_" + s.tag, "thrust", edges);
-    TH1D* hOn = makeHistEdges(s.onFile, "h_on_" + s.tag, "thrust", edges);
+    TH1D* hOff = makeEndpointThrustHistEdges(s, false, "h_off_" + s.tag, edges);
+    TH1D* hOn = makeEndpointThrustHistEdges(s, true, "h_on_" + s.tag, edges);
     std::vector<double> x, y, ex, ey;
     for (int ib = 1; ib <= hOff->GetNbinsX(); ++ib) {
         const double a = hOff->GetBinContent(ib);
@@ -304,8 +359,9 @@ TGraphErrors* makeDoubleRatio(TGraphErrors* g, TGraphErrors* ref, const SampleDe
 
 void drawISRCorrection(const std::vector<SampleDef>& samples)
 {
-    std::vector<double> edges;
-    for (int i = 0; i <= 32; ++i) edges.push_back(0.57 + i * (0.43 / 32.0));
+    const std::vector<double> edges = alephThrustEdges();
+    const double xmin = edges.front();
+    const double xmax = edges.back();
 
     std::vector<TGraphErrors*> graphs;
     for (const SampleDef& s : samples) graphs.push_back(makeCorrectionGraph(s, edges));
@@ -320,7 +376,7 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
     top->Draw(); bot->Draw();
 
     top->cd();
-    TH1D* frame = new TH1D("frame_corr", "", 100, 0.57, 1.0);
+    TH1D* frame = new TH1D("frame_corr", "", 100, xmin, xmax);
     frame->SetMinimum(0.55);
     frame->SetMaximum(1.42);
     frame->GetXaxis()->SetLabelSize(0);
@@ -329,7 +385,7 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
     frame->GetYaxis()->SetTitleOffset(1.05);
     frame->GetYaxis()->SetLabelSize(0.044);
     frame->Draw("AXIS");
-    TLine* one = new TLine(0.57, 1.0, 1.0, 1.0);
+    TLine* one = new TLine(xmin, 1.0, xmax, 1.0);
     one->SetLineStyle(2);
     one->SetLineColor(kGray + 2);
     one->Draw();
@@ -341,7 +397,7 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
     lat.DrawLatex(0.145, 0.875, "ALEPH archived data");
     lat.DrawLatex(0.630, 0.875, "e^{+}e^{-}  #sqrt{s}=91.1876 GeV");
     lat.SetTextSize(0.028);
-    lat.DrawLatex(0.145, 0.815, "Real standalone generators; Herwig uses QCD vs QCD+QED shower");
+    lat.DrawLatex(0.145, 0.815, "Nominal truth thrust: all final particles incl. neutrinos and tagged ISR photons");
     TLegend* leg = new TLegend(0.43, 0.18, 0.91, 0.38);
     leg->SetBorderSize(0);
     leg->SetFillStyle(0);
@@ -354,7 +410,7 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
     frame->Draw("AXIS SAME");
 
     bot->cd();
-    TH1D* rframe = new TH1D("frame_dr", "", 100, 0.57, 1.0);
+    TH1D* rframe = new TH1D("frame_dr", "", 100, xmin, xmax);
     rframe->SetMinimum(0.50);
     rframe->SetMaximum(1.50);
     rframe->GetXaxis()->SetTitle("Thrust T");
@@ -365,7 +421,7 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
     rframe->GetYaxis()->SetTitleOffset(0.82);
     rframe->GetYaxis()->SetLabelSize(0.075);
     rframe->Draw("AXIS");
-    TLine* one2 = new TLine(0.57, 1.0, 1.0, 1.0);
+    TLine* one2 = new TLine(xmin, 1.0, xmax, 1.0);
     one2->SetLineStyle(2);
     one2->SetLineColor(kGray + 2);
     one2->Draw();
@@ -380,10 +436,7 @@ void drawISRCorrection(const std::vector<SampleDef>& samples)
 
 void drawThrustVsAleph(const std::vector<SampleDef>& samples)
 {
-    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
-    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) {
-        alephCsv = envAleph;
-    }
+    std::string alephCsv = alephThrustCsv();
     const std::vector<AlephPoint> aleph = readAleph(alephCsv);
     const std::vector<double> edges = alephEdges(aleph);
     std::vector<double> ax, ay, aex, aey;
@@ -421,7 +474,7 @@ void drawThrustVsAleph(const std::vector<SampleDef>& samples)
     leg->SetTextSize(0.030);
     leg->AddEntry(gAleph, "ALEPH published data", "pe");
     for (const SampleDef& s : samples) {
-        TH1D* h = makeHistEdges(s.onFile, "h_aleph_" + s.tag, "thrust", edges);
+        TH1D* h = makeEndpointThrustHistEdges(s, true, "h_aleph_" + s.tag, edges);
         normalizeDensity(h);
         h->SetLineColor(s.color);
         h->SetMarkerColor(s.color);
@@ -435,7 +488,7 @@ void drawThrustVsAleph(const std::vector<SampleDef>& samples)
     lat.SetNDC();
     lat.SetTextFont(42);
     lat.SetTextSize(0.034);
-    lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR/QED-shower comparison");
+    lat.DrawLatex(0.58, 0.86, "Truth-level all final particles, incl. #nu and ISR #gamma");
     leg->Draw();
     frame->Draw("AXIS SAME");
     c->SaveAs(joinPath(gOutDir, "real_isr_on_thrust_vs_aleph.png").c_str());
@@ -451,10 +504,7 @@ std::string offLegendLabel(const SampleDef& s)
 
 void drawThrustOffVsAleph(const std::vector<SampleDef>& samples)
 {
-    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
-    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) {
-        alephCsv = envAleph;
-    }
+    std::string alephCsv = alephThrustCsv();
     const std::vector<AlephPoint> aleph = readAleph(alephCsv);
     const std::vector<double> edges = alephEdges(aleph);
     std::vector<double> ax, ay, aex, aey;
@@ -496,7 +546,7 @@ void drawThrustOffVsAleph(const std::vector<SampleDef>& samples)
     for (const SampleDef& s : samples) {
         if (std::find(drawnOffFiles.begin(), drawnOffFiles.end(), s.offFile) != drawnOffFiles.end()) continue;
         drawnOffFiles.push_back(s.offFile);
-        TH1D* h = makeHistEdges(s.offFile, "h_aleph_off_" + s.tag, "thrust", edges);
+        TH1D* h = makeEndpointThrustHistEdges(s, false, "h_aleph_off_" + s.tag, edges);
         normalizeDensity(h);
         h->SetLineColor(s.color);
         h->SetMarkerColor(s.color);
@@ -510,7 +560,7 @@ void drawThrustOffVsAleph(const std::vector<SampleDef>& samples)
     lat.SetNDC();
     lat.SetTextFont(42);
     lat.SetTextSize(0.034);
-    lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR OFF baselines");
+    lat.DrawLatex(0.58, 0.86, "Truth-level all final particles, incl. #nu and ISR #gamma");
     lat.SetTextSize(0.026);
     lat.DrawLatex(0.58, 0.815, "Sherpa PDFESherpa and YFS share the same OFF file");
     leg->Draw();
@@ -521,10 +571,7 @@ void drawThrustOffVsAleph(const std::vector<SampleDef>& samples)
 
 void drawThrustVsAlephRatioPanels(const std::vector<SampleDef>& samples, bool useISRLikeSample)
 {
-    std::string alephCsv = "/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/ALEPH/HEPData-ins636645-v1-Table_54.csv";
-    if (const char* envAleph = gSystem->Getenv("ALEPH_THRUST_CSV")) {
-        alephCsv = envAleph;
-    }
+    std::string alephCsv = alephThrustCsv();
     const std::vector<AlephPoint> aleph = readAleph(alephCsv);
     const std::vector<double> edges = alephEdges(aleph);
     TGraphErrors* gAleph = makeAlephGraph(aleph, useISRLikeSample ? "g_aleph_ratio_on" : "g_aleph_ratio_off");
@@ -575,7 +622,7 @@ void drawThrustVsAlephRatioPanels(const std::vector<SampleDef>& samples, bool us
         }
         const std::string histName = useISRLikeSample ? ("h_aleph_ratio_on_" + s.tag)
                                                       : ("h_aleph_ratio_off_" + s.tag);
-        TH1D* h = makeHistEdges(useISRLikeSample ? s.onFile : s.offFile, histName, "thrust", edges);
+        TH1D* h = makeEndpointThrustHistEdges(s, useISRLikeSample, histName, edges);
         normalizeDensity(h);
         h->SetLineColor(s.color);
         h->SetMarkerColor(s.color);
@@ -596,9 +643,9 @@ void drawThrustVsAlephRatioPanels(const std::vector<SampleDef>& samples, bool us
     lat.SetTextFont(42);
     lat.SetTextSize(0.034);
     if (useISRLikeSample) {
-        lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR/QED-shower comparison");
+        lat.DrawLatex(0.58, 0.86, "Truth-level all final particles, incl. #nu and ISR #gamma");
     } else {
-        lat.DrawLatex(0.58, 0.86, "#sqrt{s}=91.1876 GeV, ISR OFF baselines");
+        lat.DrawLatex(0.58, 0.86, "Truth-level all final particles, incl. #nu and ISR #gamma");
         lat.SetTextSize(0.026);
         lat.DrawLatex(0.58, 0.815, "Sherpa PDFESherpa and YFS share the same OFF file");
     }
@@ -764,6 +811,10 @@ void plot_real_isr_results()
     if (const char* envDir = gSystem->Getenv("ISR_REAL_DIR")) {
         gRealDir = envDir;
         gOutDir = joinPath(gRealDir, "results");
+        gDiagDir = joinPath(gRealDir, "endpoint_diagnostics");
+    }
+    if (const char* envDiag = gSystem->Getenv("ISR_ENDPOINT_DIAG_DIR")) {
+        gDiagDir = envDiag;
     }
     if (const char* envOut = gSystem->Getenv("ISR_OUT_DIR")) {
         gOutDir = envOut;
@@ -791,9 +842,16 @@ void plot_real_isr_results()
     drawThrustOffVsAleph(samples);
     drawThrustVsAlephRatioPanels(samples, true);
     drawThrustVsAlephRatioPanels(samples, false);
+    if (gSystem->Getenv("ISR_THRUST_ONLY")) return;
     drawISRPhotonSpectra(samples);
     drawVisibleEnergy(samples);
     if (!gSystem->Getenv("ISR_SKIP_STATS")) writeStats(samples);
+}
+
+void plot_real_thrust_figures()
+{
+    gSystem->Setenv("ISR_THRUST_ONLY", "1");
+    plot_real_isr_results();
 }
 
 void plot_real_aleph_ratio_figures()
@@ -801,6 +859,10 @@ void plot_real_aleph_ratio_figures()
     if (const char* envDir = gSystem->Getenv("ISR_REAL_DIR")) {
         gRealDir = envDir;
         gOutDir = joinPath(gRealDir, "results");
+        gDiagDir = joinPath(gRealDir, "endpoint_diagnostics");
+    }
+    if (const char* envDiag = gSystem->Getenv("ISR_ENDPOINT_DIAG_DIR")) {
+        gDiagDir = envDiag;
     }
     if (const char* envOut = gSystem->Getenv("ISR_OUT_DIR")) {
         gOutDir = envOut;
@@ -832,6 +894,10 @@ void plot_real_isr_off_thrust_vs_aleph()
     if (const char* envDir = gSystem->Getenv("ISR_REAL_DIR")) {
         gRealDir = envDir;
         gOutDir = joinPath(gRealDir, "results");
+        gDiagDir = joinPath(gRealDir, "endpoint_diagnostics");
+    }
+    if (const char* envDiag = gSystem->Getenv("ISR_ENDPOINT_DIAG_DIR")) {
+        gDiagDir = envDiag;
     }
     if (const char* envOut = gSystem->Getenv("ISR_OUT_DIR")) {
         gOutDir = envOut;

@@ -29,6 +29,11 @@ particle-level observables, and parton-level observables.
   energy.
 - `macros/write_real_isr_stats.C`: standalone ROOT statistics writer for the
   scalar sample-summary CSV.
+- `src/make_endpoint_diagnostics.cc`: derived per-event diagnostic ntuple
+  producer for checking whether high-thrust endpoint behavior is correlated
+  with low visible mass, longitudinal boost, or explicit ISR photon activity.
+- `macros/plot_endpoint_diagnostics.C`: 2D endpoint-correlation plotter and
+  summary-table writer for the derived diagnostic ntuples.
 - `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
 - `docs/REAL_GENERATOR_PRODUCTION.md`: current real-generator production status,
   version references, ISR ON/OFF definitions, sample statistics, and output paths.
@@ -106,6 +111,46 @@ Regenerate the real-generator plots:
 ```bash
 ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 root -l -b -q macros/plot_real_isr_results.C
 ```
+
+Build and run the endpoint diagnostic pass for the ISR ON samples:
+
+```bash
+./scripts/build_real_isr_tools.sh
+REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 MAX_WORKERS=5 ./scripts/run_endpoint_diagnostics.sh
+ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 root -l -b -q macros/plot_endpoint_diagnostics.C
+```
+
+The same runner can produce the ISR OFF derived trees needed for correction
+ratios:
+
+```bash
+REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 OUTDIR=/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k SAMPLE_SET=OFF MAX_WORKERS=4 ./scripts/run_endpoint_diagnostics.sh
+ISR_REAL_DIR=/data2/yjlee/ISRsample/real_3M_20260511 ISR_ENDPOINT_DIAG_DIR=/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k root -l -b -q macros/plot_thrust_definition_corrections.C
+```
+
+The diagnostic trees are written to:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k
+```
+
+The endpoint correlation figures and summary tables are written to:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/endpoint_diagnostics
+```
+
+The thrust-definition `C_ISR(T)` comparison figures are written to:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/thrust_definition_corrections
+```
+
+For the current nominal quick check, `T_lab_allFinal_including_ISR_photons`
+is computed from all stable final-state particles, including neutrinos and
+tagged ISR photons.  The diagnostic tree also stores the visible-particle
+cross-checks: `T_lab_excluding_ISR_photons`, `T_lab_including_ISR_photons`,
+and `T_visibleCM_excluding_ISR_photons`.
 
 Regenerate only the ALEPH thrust comparison figures with `MC / ALEPH` ratio
 panels:

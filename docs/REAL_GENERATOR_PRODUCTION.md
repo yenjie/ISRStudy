@@ -179,7 +179,11 @@ Summary file:
 ```
 
 Key means from the 3M production after recomputing visible energy from
-final-state non-neutrino particles within `|eta| < 1.74`, including photons:
+final-state non-neutrino particles within `|eta| < 1.74`, including photons.
+The `mean thrust` column here is the original stored `Events.thrust` branch,
+which was the pre-diagnostic visible-particle thrust with tagged ISR photons
+removed.  The current nominal all-final thrust is stored in the derived
+diagnostic tree described below.
 
 | sample | mode | entries | mean thrust | mean visible energy [GeV] | mean ISR photons | mean ISR photon energy [GeV] |
 |---|---:|---:|---:|---:|---:|---:|
@@ -212,7 +216,99 @@ final-state non-neutrino particles within `|eta| < 1.74`, including photons:
   3M file exactly reproduced the `thrust` branch from the stored final-state
   non-neutrino particles with tagged ISR photons excluded.  The thrust branch
   itself is therefore consistent with the current thrust algorithm and
-  selection.
+  selection used at production time.  The producer default has since been
+  updated so future `Events.thrust` branches use the requested all-stable-final
+  convention, including neutrinos and tagged ISR photons.
+
+## Endpoint mass and boost diagnostic
+
+An additional derived-ntuple pass was added to test whether Sherpa endpoint
+behavior is driven by low visible mass, a longitudinal boost, or unusually
+large explicit ISR photon activity.  The pass does not modify the original
+generator ROOT files.  It reads the stored particle vectors and writes one
+compact ROOT file per ISR ON/OFF sample.  The current all-final 500k quick
+check is stored under:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/endpoint_diagnostics_allfinal_500k
+```
+
+Each derived `EndpointDiagnostics` tree stores:
+
+```text
+T_lab_excluding_ISR_photons
+T_lab_including_ISR_photons
+T_visibleCM_excluding_ISR_photons
+T_lab_allFinal_including_ISR_photons
+T_lab_allFinal_excluding_ISR_photons
+T_allFinalCM_including_ISR_photons
+cosTheta_thrust_lab_allFinal_including_ISR_photons
+absCosTheta_thrust_lab_allFinal_including_ISR_photons
+Evis_excluding_ISR_photons
+Evis_including_ISR_photons
+Mvis_excluding_ISR_photons
+Mvis_including_ISR_photons
+sPrime_vis_over_s
+betaZ_vis
+Eall_including_ISR_photons
+Eall_excluding_ISR_photons
+Mall_including_ISR_photons
+Mall_excluding_ISR_photons
+sAll_including_ISR_over_s
+betaZ_all_including_ISR
+leading_ISR_photon_energy
+leading_ISR_photon_theta
+N_ISR_photons
+sum_ISR_photon_energy
+event_weight
+```
+
+For the current nominal quick check, `T_lab_allFinal_including_ISR_photons`
+uses all stable final-state particles, including neutrinos and tagged ISR
+photons.  The visible-particle variants keep the earlier ALEPH-style
+cross-checks that exclude neutrinos and either remove or include tagged ISR
+photons.  The CM variants boost the selected four-vector sum to its own rest
+frame before recomputing thrust.
+
+The 2D correlation plots are written to:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/endpoint_diagnostics
+```
+
+The same diagnostic producer was also run on the ISR OFF samples to compare
+the nominal thrust definition and the visible-particle cross-check definitions
+in the ISR correction ratio:
+
+```text
+A: T_lab_excluding_ISR_photons
+B: T_lab_including_ISR_photons
+C: T_visibleCM_excluding_ISR_photons
+N: T_lab_allFinal_including_ISR_photons
+```
+
+Those `C_ISR(T)` plots and bin-summary CSV files are written to:
+
+```text
+/data2/yjlee/ISRsample/real_3M_20260511/results_allfinal_500k/thrust_definition_corrections
+```
+
+The 500k all-final quick-check endpoint summary is definition-dependent.  In
+the last ALEPH thrust bin, `0.99 < T < 1.00`, Sherpa PDFESherpa has
+`C_ISR = 1.158 +/- 0.017` for definition N and
+`C_ISR = 1.161 +/- 0.017` for definition B, where explicit tagged ISR photons
+are kept in the thrust input.  The same sample gives
+`C_ISR = 0.492 +/- 0.006` for definition A and
+`C_ISR = 0.495 +/- 0.006` for definition C, where tagged ISR photons are
+removed from the visible-particle thrust input.  The endpoint sign therefore
+changes with the photon/neutrino convention:
+
+```text
+N: T_lab_allFinal_including_ISR_photons
+A: T_lab_excluding_ISR_photons
+B: T_lab_including_ISR_photons
+C: T_visibleCM_excluding_ISR_photons
+```
 
 ## Repository and Overleaf sync status
 

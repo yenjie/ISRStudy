@@ -43,7 +43,9 @@ struct Options {
 
 struct SelectionConfig {
     bool includeISRPhotonsInVisibleEnergy = true;
-    bool includeISRPhotonsInEventShapes = false;
+    bool includeISRPhotonsInEventShapes = true;
+    bool includeNeutrinosInVisibleEnergy = false;
+    bool includeNeutrinosInEventShapes = true;
     bool useChargedParticlesOnly = false;
     double visibleEtaMax = 1.74;
 };
@@ -187,7 +189,11 @@ std::vector<TLorentzVector> selectedVisibleParticles(const EventBranches& b, con
     selected.reserve(b.pdgId.size());
     for (size_t i = 0; i < b.pdgId.size(); ++i) {
         if (!b.isFinal[i]) continue;
-        if (isNeutrino(b.pdgId[i])) continue;
+        if (isNeutrino(b.pdgId[i]) &&
+            !(forEventShapes ? config.includeNeutrinosInEventShapes
+                             : config.includeNeutrinosInVisibleEnergy)) {
+            continue;
+        }
         if (forEventShapes && !config.includeISRPhotonsInEventShapes && b.isISRPhoton[i]) continue;
         if (!forEventShapes && !config.includeISRPhotonsInVisibleEnergy && b.isISRPhoton[i]) continue;
         if (config.useChargedParticlesOnly && !b.isCharged[i]) continue;
@@ -203,7 +209,7 @@ double computeVisibleEnergy(const EventBranches& b, const SelectionConfig& confi
     double evis = 0.0;
     for (size_t i = 0; i < b.pdgId.size(); ++i) {
         if (!b.isFinal[i]) continue;
-        if (isNeutrino(b.pdgId[i])) continue;
+        if (isNeutrino(b.pdgId[i]) && !config.includeNeutrinosInVisibleEnergy) continue;
         if (!config.includeISRPhotonsInVisibleEnergy && b.isISRPhoton[i]) continue;
         if (config.useChargedParticlesOnly && !b.isCharged[i]) continue;
         TLorentzVector p4(b.px[i], b.py[i], b.pz[i], b.energy[i]);
