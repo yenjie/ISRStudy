@@ -1,4 +1,5 @@
 #include <TCanvas.h>
+#include <TColor.h>
 #include <TFile.h>
 #include <TGraphErrors.h>
 #include <TH1D.h>
@@ -153,8 +154,8 @@ TGraphErrors* makeCorrectionGraph(const SampleDef& s, const std::vector<double>&
     g->SetLineColor(s.color);
     g->SetMarkerColor(s.color);
     g->SetMarkerStyle(s.marker);
-    g->SetMarkerSize(0.62);
-    g->SetLineWidth(2);
+    g->SetMarkerSize(0.82);
+    g->SetLineWidth(3);
     return g;
 }
 
@@ -179,8 +180,8 @@ TGraphErrors* makeDoubleRatio(TGraphErrors* g, TGraphErrors* ref, const SampleDe
     out->SetLineColor(s.color);
     out->SetMarkerColor(s.color);
     out->SetMarkerStyle(s.marker);
-    out->SetMarkerSize(0.55);
-    out->SetLineWidth(2);
+    out->SetMarkerSize(0.74);
+    out->SetLineWidth(3);
     return out;
 }
 
@@ -307,9 +308,9 @@ void drawThrustVsAleph(const std::vector<SampleDef>& samples)
         normalizeDensity(h);
         h->SetLineColor(s.color);
         h->SetMarkerColor(s.color);
-        h->SetLineWidth(2);
+        h->SetLineWidth(3);
         h->SetMarkerStyle(s.marker);
-        h->SetMarkerSize(0.35);
+        h->SetMarkerSize(0.48);
         h->Draw("HIST SAME");
         leg->AddEntry(h, s.label.c_str(), "l");
     }
@@ -340,7 +341,7 @@ void drawISRPhotonSpectra(const std::vector<SampleDef>& samples)
         TH1D* h = makeHist(s.onFile, "h_isr_e_" + s.tag, "energy", 80, 0.0, 50.0, "isISRPhoton");
         normalizeDensity(h);
         h->SetLineColor(s.color);
-        h->SetLineWidth(2);
+        h->SetLineWidth(3);
         h->SetMinimum(1e-5);
         h->SetMaximum(4.0);
         h->GetXaxis()->SetTitle("ISR photon E [GeV]");
@@ -360,7 +361,7 @@ void drawISRPhotonSpectra(const std::vector<SampleDef>& samples)
                            90, 0.0, 180.0, "isISRPhoton");
         normalizeDensity(h);
         h->SetLineColor(s.color);
-        h->SetLineWidth(2);
+        h->SetLineWidth(3);
         h->SetMinimum(1e-5);
         h->SetMaximum(4.0);
         h->GetXaxis()->SetTitle("ISR photon #theta [deg]");
@@ -382,9 +383,9 @@ void drawVisibleEnergy(const std::vector<SampleDef>& samples)
         normalizeDensity(hOff);
         normalizeDensity(hOn);
         hOff->SetLineColor(kBlack);
-        hOff->SetLineWidth(2);
+        hOff->SetLineWidth(3);
         hOn->SetLineColor(s.color);
-        hOn->SetLineWidth(2);
+        hOn->SetLineWidth(3);
         hOff->SetMaximum(std::max(hOff->GetMaximum(), hOn->GetMaximum()) * 1.25);
         hOff->GetXaxis()->SetTitle("Visible energy E_{vis} [GeV]");
         hOff->GetYaxis()->SetTitle("normalized entries");
@@ -445,17 +446,23 @@ void plot_real_isr_results()
     gStyle->SetOptStat(0);
     TH1::AddDirectory(kFALSE);
 
+    const int colorBlue = TColor::GetColor("#0072B2");
+    const int colorVermillion = TColor::GetColor("#D55E00");
+    const int colorGreen = TColor::GetColor("#009E73");
+    const int colorPurple = TColor::GetColor("#CC79A7");
+    const int colorOrange = TColor::GetColor("#E69F00");
+
     std::vector<SampleDef> samples = {
-        {"Herwig 7.3.0 QED shower", "Herwig730_QEDshower", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_QEDshower.root"), "QEDshower", kBlue + 2, 20, -0.0015},
-        {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), "ISR ON", kRed + 1, 20, -0.0005},
-        {"Sherpa 3.0.3 PDFESherpa", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), "ISR ON (PDFESherpa)", kMagenta + 2, 23, 0.0005},
-        {"Sherpa 3.0.3 YFS", "Sherpa303_YFS", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_YFS.root"), "ISR ON (YFS)", kOrange + 7, 34, 0.0010},
-        {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), "ISR ON", kCyan + 2, 22, 0.0015}
+        {"Herwig 7.3.0 QED shower", "Herwig730_QEDshower", joinPath(gRealDir, "mc_Herwig730_ISR_OFF.root"), joinPath(gRealDir, "mc_Herwig730_QEDshower.root"), "QEDshower", colorBlue, 20, -0.0018},
+        {"PYTHIA 8.315", "Pythia8315", joinPath(gRealDir, "mc_Pythia8315_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_ISR_ON.root"), "ISR ON", colorVermillion, 21, -0.0009},
+        {"Sherpa 3.0.3 PDFESherpa", "Sherpa303", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_ON.root"), "ISR ON (PDFESherpa)", colorGreen, 23, 0.0000},
+        {"Sherpa 3.0.3 YFS", "Sherpa303_YFS", joinPath(gRealDir, "mc_Sherpa303_ISR_OFF.root"), joinPath(gRealDir, "mc_Sherpa303_ISR_YFS.root"), "ISR ON (YFS)", colorPurple, 34, 0.0009},
+        {"PYTHIA 8.315 (Vincia)", "Pythia8315_Vincia", joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_OFF.root"), joinPath(gRealDir, "mc_Pythia8315_Vincia_ISR_ON.root"), "ISR ON", colorOrange, 22, 0.0018}
     };
 
     drawISRCorrection(samples);
     drawThrustVsAleph(samples);
     drawISRPhotonSpectra(samples);
     drawVisibleEnergy(samples);
-    writeStats(samples);
+    if (!gSystem->Getenv("ISR_SKIP_STATS")) writeStats(samples);
 }
