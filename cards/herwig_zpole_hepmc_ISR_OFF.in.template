@@ -1,10 +1,21 @@
+# Herwig 7.3 Z-pole run card: beam ISR genuinely OFF.
+#
+# snippets/EECollider.in leaves the default ThePEG::LeptonLeptonPDF attached to
+# the incoming e+/e-.  That PDF is the exponentiated collinear QED electron
+# structure function, i.e. real beam ISR, and it stays active unless it is
+# replaced.  Setting the e+/e- PDF to NoPDF is what actually switches ISR off;
+# changing ShowerHandler:Interactions only changes the QED shower.
 read @EECOLLIDER@
 
 cd /Herwig/MatrixElements
 insert SubProcess:MatrixElements 0 MEee2gZ2qq
 
 cd /Herwig/Shower
-set ShowerHandler:Interactions QCD
+set ShowerHandler:Interactions QEDQCD
+
+# Beam ISR OFF: incoming leptons carry the full beam energy.
+set /Herwig/Particles/e-:PDF /Herwig/Partons/NoPDF
+set /Herwig/Particles/e+:PDF /Herwig/Partons/NoPDF
 
 cd /Herwig/Generators
 set EventGenerator:EventHandler:LuminosityFunction:Energy @ENERGY@

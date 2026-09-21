@@ -18,9 +18,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -31,6 +33,7 @@ struct Options {
     std::string mode = "pythia";
     std::string hepmcFormat = "hepmc2";
     std::string hepmcInput;
+    std::string kkmcInput;
     std::string output = "events.root";
     std::string generatorName = "PYTHIA 8.315";
     int generatorId = 2;
@@ -482,7 +485,7 @@ void fillFromPythia(const Pythia8::Pythia& pythia, EventBranches& b)
         const bool finalState = p.isFinal();
         const bool parton = apdg <= 6 || apdg == 21;
         const bool photon = pdg == 22;
-        const bool isrPhoton = photon && b.isrOn && hasImmediateLeptonMother(pythia.event, i);
+        const bool isrPhoton = photon && finalState && hasImmediateLeptonMother(pythia.event, i);
         TLorentzVector p4(p.px(), p.py(), p.pz(), p.e());
         addParticle(b, pdg, p.status(), p.mother1(), p.mother2(), p.daughter1(), p.daughter2(),
                     p4, finalState, parton, p.isHadron(), p.isLepton(), photon, isrPhoton, p.charge());
@@ -564,20 +567,35 @@ int lastOrZero(const std::vector<HepMC3::ConstGenParticlePtr>& particles)
     return particles.empty() ? 0 : particles.back()->id();
 }
 
+// Maximum number of outgoing particles a vertex may have for its incoming
+// leptons to be read as a genuine e -> e gamma beam-radiation branching.  A
+// "short"/flat HepMC record (Sherpa's HEPMC3_SHORT, for example) hangs the whole
+// final state off a single vertex whose incoming particles are the two beam
+// leptons; without this guard the incoming-lepton test tags every photon in the
+// event, including all pi0 decay photons.
+constexpr std::size_t kMaxISRVertexOutgoing = 4;
+
+// Photons that are exactly along the beam axis are the collinear structure-function
+// remnant photons.  This is a deliberately tight cut: loosening it to |cos(theta)|
+// > 0.99 picks up roughly 0.33 GeV/event of ordinary forward hadronic photons in an
+// ISR-OFF sample, which is larger than the ISR signal itself at the Z pole.
+constexpr double kISRPhotonMinAbsCosTheta = 0.9999;
+
 bool hepmcLooksLikeISRPhoton(const HepMC3::ConstGenParticlePtr& p)
 {
     if (!p || p->pid() != 22 || p->status() != 1) return false;
     const HepMC3::FourVector& v = p->momentum();
     const double pabs = std::sqrt(v.px() * v.px() + v.py() * v.py() + v.pz() * v.pz());
-    if (pabs <= 1e-9 || v.e() < 0.05) return false;
+    if (pabs <= 1e-9) return false;
     const double absCosTheta = std::abs(v.pz() / pabs);
-    if (absCosTheta > 0.990) return true;
+
     auto prod = p->production_vertex();
-    if (!prod) return false;
-    for (const auto& mother : prod->particles_in()) {
-        if (mother && std::abs(mother->pid()) == 11) return true;
+    if (prod && prod->particles_out().size() <= kMaxISRVertexOutgoing) {
+        for (const auto& mother : prod->particles_in()) {
+            if (mother && std::abs(mother->pid()) == 11) return true;
+        }
     }
-    return false;
+    return absCosTheta > kISRPhotonMinAbsCosTheta;
 }
 
 void fillFromHepMC(const HepMC3::GenEvent& event, EventBranches& b)
@@ -596,7 +614,10 @@ void fillFromHepMC(const HepMC3::GenEvent& event, EventBranches& b)
         const bool finalState = p->status() == 1 || !p->end_vertex();
         const bool parton = apdg <= 6 || apdg == 21;
         const bool photon = pdg == 22;
-        const bool isrPhoton = b.isrOn && hepmcLooksLikeISRPhoton(p);
+        // The tag is deliberately evaluated for ISR OFF samples too.  Gating it on
+        // b.isrOn made any mis-tag an OFF/ON asymmetry, because observables that
+        // remove tagged photons then removed them from the ON sample only.
+        const bool isrPhoton = hepmcLooksLikeISRPhoton(p);
 
         std::vector<HepMC3::ConstGenParticlePtr> mothers;
         std::vector<HepMC3::ConstGenParticlePtr> daughters;
@@ -663,6 +684,7 @@ Options parseOptions(int argc, char** argv)
         if (key == "--mode") opt.mode = requireValue(key);
         else if (key == "--hepmcFormat") opt.hepmcFormat = requireValue(key);
         else if (key == "--hepmcInput") opt.hepmcInput = requireValue(key);
+        else if (key == "--kkmcInput") opt.kkmcInput = requireValue(key);
         else if (key == "--output") opt.output = requireValue(key);
         else if (key == "--generatorName") opt.generatorName = requireValue(key);
         else if (key == "--generatorId") opt.generatorId = std::atoi(requireValue(key).c_str());
@@ -675,7 +697,8 @@ Options parseOptions(int argc, char** argv)
             std::cout
                 << "Usage:\n"
                 << "  real_isr_ntuple_producer --mode pythia --nEvents N --isrOn 0|1 --output file.root [--vincia 0|1]\n"
-                << "  real_isr_ntuple_producer --mode hepmc --hepmcInput file_or_fifo --hepmcFormat hepmc2|hepmc3 --output file.root\n";
+                << "  real_isr_ntuple_producer --mode hepmc --hepmcInput file_or_fifo --hepmcFormat hepmc2|hepmc3 --output file.root\n"
+                << "  real_isr_ntuple_producer --mode kkmc  --kkmcInput kkmc_events.dat --output file.root\n";
             std::exit(0);
         } else {
             throw std::runtime_error("Unknown option " + key);
@@ -686,12 +709,119 @@ Options parseOptions(int argc, char** argv)
 
 } // namespace
 
+// ---------------------------------------------------------------------------
+// KKMC ASCII dump reader.
+//
+// KKMC writes, per event, its own ISR photon list taken straight from KarLud
+// followed by the stable final state from the PYTHIA 6.202 PYJETS record:
+//
+//   E  <iev> <weight> <nISR> <nFinal>
+//   I  px py pz e                      ISR photons
+//   P  kf px py pz e m                 stable final-state particles
+//
+// The ISR photons are also present among the stable particles, so they are
+// matched back by four-momentum rather than being added twice.  This is the one
+// generator in the study where the ISR photon set is the generator's own
+// definition and not an analysis-side tag.
+// ---------------------------------------------------------------------------
+int runKKMC(const Options& opt)
+{
+    if (opt.kkmcInput.empty()) throw std::runtime_error("--kkmcInput is required for --mode kkmc");
+    std::ifstream in(opt.kkmcInput);
+    if (!in) throw std::runtime_error("Could not open " + opt.kkmcInput);
+
+    TFile output(opt.output.c_str(), "RECREATE");
+    if (output.IsZombie()) throw std::runtime_error("Could not open output file " + opt.output);
+    TTree tree("Events", "Real generator event record for ISR studies");
+    EventBranches b;
+    b.generatorId = opt.generatorId;
+    b.generatorName = opt.generatorName;
+    b.isrOn = opt.isrOn;
+    b.sqrtS = opt.sqrtS;
+    bookTree(&tree, b);
+
+    int nRead = 0;
+    std::string line;
+    std::vector<TLorentzVector> isrPhotons;
+    while (nRead < opt.nEvents && std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        if (line[0] == 'E') {
+            const char* cur = line.c_str() + 1;
+            char* endp = nullptr;
+            const long iev = std::strtol(cur, &endp, 10);
+            (void)iev;
+            cur = endp;
+            const double weight = std::strtod(cur, &endp);
+            cur = endp;
+            const int nIsr = static_cast<int>(std::strtol(cur, &endp, 10));
+            cur = endp;
+            const int nFinal = static_cast<int>(std::strtol(cur, &endp, 10));
+
+            reset(b);
+            b.eventId = nRead;
+            b.processId = 1;
+            b.processName = "e+e- -> gamma*/Z -> q qbar + n gamma";
+            b.weight = weight;
+            isrPhotons.clear();
+            isrPhotons.reserve(nIsr);
+
+            for (int i = 0; i < nIsr; ++i) {
+                if (!std::getline(in, line)) throw std::runtime_error("Truncated KKMC ISR block");
+                const char* p = line.c_str() + 1;
+                char* q = nullptr;
+                const double px = std::strtod(p, &q); p = q;
+                const double py = std::strtod(p, &q); p = q;
+                const double pz = std::strtod(p, &q); p = q;
+                const double e = std::strtod(p, &q);
+                isrPhotons.emplace_back(px, py, pz, e);
+            }
+            for (int i = 0; i < nFinal; ++i) {
+                if (!std::getline(in, line)) throw std::runtime_error("Truncated KKMC particle block");
+                const char* p = line.c_str() + 1;
+                char* q = nullptr;
+                const int pdg = static_cast<int>(std::strtol(p, &q, 10)); p = q;
+                const double px = std::strtod(p, &q); p = q;
+                const double py = std::strtod(p, &q); p = q;
+                const double pz = std::strtod(p, &q); p = q;
+                const double e = std::strtod(p, &q); p = q;
+                const double m = std::strtod(p, &q);
+                (void)m;
+                const TLorentzVector p4(px, py, pz, e);
+                const int apdg = std::abs(pdg);
+                const bool photon = pdg == 22;
+                bool isrPhoton = false;
+                if (photon) {
+                    for (const auto& g : isrPhotons) {
+                        if (std::abs(g.Px() - px) < 1e-6 && std::abs(g.Py() - py) < 1e-6 &&
+                            std::abs(g.Pz() - pz) < 1e-6) {
+                            isrPhoton = true;
+                            break;
+                        }
+                    }
+                }
+                addParticle(b, pdg, 1, 0, 0, 0, 0, p4, true, apdg <= 6 || apdg == 21,
+                            isHadronPdg(pdg), isLeptonPdg(pdg), photon, isrPhoton,
+                            particleCharge(pdg));
+            }
+            finalizeObservables(b);
+            tree.Fill();
+            ++nRead;
+        }
+    }
+
+    tree.Write();
+    output.Close();
+    std::cout << "Converted " << nRead << " KKMC events to " << opt.output << std::endl;
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     try {
         const Options opt = parseOptions(argc, argv);
         if (opt.mode == "pythia") return runPythia(opt);
         if (opt.mode == "hepmc") return runHepMC(opt);
+        if (opt.mode == "kkmc") return runKKMC(opt);
         throw std::runtime_error("Unsupported mode " + opt.mode);
     } catch (const std::exception& e) {
         std::cerr << "real_isr_ntuple_producer: " << e.what() << std::endl;

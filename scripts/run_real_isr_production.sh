@@ -60,17 +60,38 @@ run_pythia() {
     --output "$out"
 }
 
+# run_herwig <mode> <seed>
+#   OFF       genuine beam-ISR OFF (e+/e- PDF set to NoPDF)
+#   ON        genuine beam-ISR ON  (e+/e- PDF set to LeptonLeptonPDF)
+#   QEDshower legacy QED-shower-only comparison; beam ISR stays ON, so this is
+#             NOT an ISR toggle and must not be plotted as an ISR correction.
 run_herwig() {
-  local isr="$1"
+  local mode_arg="$1"
   local seed="$2"
+  local isr="0"
   local sample="ISR_OFF"
   local run_label="ISR_OFF"
   local template="$REPO_ROOT/cards/herwig_zpole_hepmc_ISR_OFF.in.template"
-  if [[ "$isr" == "1" ]]; then
-    sample="QEDshower"
-    run_label="QEDshower"
-    template="$REPO_ROOT/cards/herwig_zpole_hepmc_QEDshower.in.template"
-  fi
+  case "$mode_arg" in
+    OFF)
+      ;;
+    ON)
+      isr="1"
+      sample="ISR_ON"
+      run_label="ISR_ON"
+      template="$REPO_ROOT/cards/herwig_zpole_hepmc_ISR_ON.in.template"
+      ;;
+    QEDshower)
+      isr="1"
+      sample="QEDshower"
+      run_label="QEDshower"
+      template="$REPO_ROOT/cards/herwig_zpole_hepmc_QEDshower.in.template"
+      ;;
+    *)
+      echo "Unknown Herwig mode: $mode_arg" >&2
+      exit 1
+      ;;
+  esac
   local out="$OUTDIR/mc_Herwig730_${sample}.root"
   if [[ -f "$out" && "$FORCE" != "1" ]]; then
     echo "[reuse] $out"
@@ -228,11 +249,15 @@ if contains_target pythia-vincia || contains_target pythia-vincia-on; then
 fi
 
 if contains_target herwig || contains_target herwig-off; then
-  run_herwig 0 1300510
+  run_herwig OFF 1300510
 fi
 
-if contains_target herwig || contains_target herwig-on || contains_target herwig-qedshower; then
-  run_herwig 1 1300511
+if contains_target herwig || contains_target herwig-on; then
+  run_herwig ON 1300511
+fi
+
+if contains_target herwig-qedshower; then
+  run_herwig QEDshower 1300512
 fi
 
 if contains_target sherpa || contains_target sherpa-off; then

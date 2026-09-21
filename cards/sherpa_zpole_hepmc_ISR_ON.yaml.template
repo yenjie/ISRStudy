@@ -11,6 +11,19 @@ ISR_E_SCHEME: 2
 PARTICLE_DATA:
   11:
     Massive: true
+  # Keep V0 weak decays disabled at generator level for DELPHI/ALEPH-style
+  # particle-level studies where these particles are reconstructed as stable.
+  310: {Stable: 1}
+  3122: {Stable: 1}
+  -3122: {Stable: 1}
+  3112: {Stable: 1}
+  -3112: {Stable: 1}
+  3222: {Stable: 1}
+  -3222: {Stable: 1}
+  3312: {Stable: 1}
+  -3312: {Stable: 1}
+  3322: {Stable: 1}
+  -3322: {Stable: 1}
 
 YFS:
   MODE: None
@@ -19,7 +32,9 @@ EVENT_FILE_PATH: .
 EVENT_OUTPUT:
   - HepMC3[@OUTPUT_BASENAME@]
 HEPMC3_IO_TYPE: 2
-HEPMC3_SHORT: true
+# HEPMC3_SHORT is deliberately NOT set.  It collapses the whole final state
+# onto a single vertex whose incoming particles are the two beam leptons, which
+# destroys the ISR photon history and makes every photon look beam-radiated.
 
 PROCESSES:
   - 11 -11 -> 93 93:

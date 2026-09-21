@@ -19,6 +19,7 @@ targets=(
   pythia-vincia-off
   pythia-vincia-on
   herwig-off
+  herwig-on
   herwig-qedshower
   sherpa-off
   sherpa-on

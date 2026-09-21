@@ -1,5 +1,26 @@
 # Real-generator ISR production status
 
+> **CORRECTION NOTICE (2026-09-20).** The tagged-ISR-photon chain used for this
+> production was defective.  See `docs/ISR_MODELLING_AND_KKMC.md` for the full
+> audit.  In short:
+>
+> - The Sherpa cards set `HEPMC3_SHORT: true`, collapsing the HepMC record onto a
+>   single beam vertex, so the converter's incoming-lepton rule tagged every photon
+>   in the event.  Sherpa's `<E_ISR> = 22.8 GeV` below is the pi0 photon content,
+>   not ISR; the true value is `0.22 GeV/event`.
+> - The tag was only evaluated when `isrOn` was true, so thrust definitions A and C
+>   remove photons from the ISR ON sample only and are invalid for every generator.
+>   Definitions N and B are unaffected.
+> - Herwig's beam ISR was never switched off: both Herwig samples keep the default
+>   `ThePEG::LeptonLeptonPDF` structure function, so the Herwig ratio is a QED-shower
+>   ratio at fixed ISR.
+> - The `mean_thrust` column below is definition A, not the nominal N; for Sherpa it
+>   carries the wrong sign.  Corrected `<T_N>` shifts are `-0.00083` for PYTHIA,
+>   Vincia, Sherpa PDFESherpa and Sherpa YFS alike, and `-0.00032` for Herwig.
+>
+> The producer, the Sherpa cards and the Herwig cards have been fixed.  The Sherpa
+> and Herwig samples have to be regenerated before the affected figures are quoted.
+
 Date: 2026-05-11  
 Latest production directory: `/data2/yjlee/ISRsample/real_3M_20260511`  
 

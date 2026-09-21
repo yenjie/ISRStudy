@@ -1,11 +1,9 @@
-# Herwig 7.3 Z-pole run card: QED shower comparison ONLY.
+# Herwig 7.3 Z-pole run card: beam ISR ON.
 #
-# This card differs from herwig_zpole_hepmc_ISR_OFF only in the shower
-# Interactions setting.  It does NOT toggle beam ISR: the default
-# LeptonLeptonPDF structure function stays attached to the incoming leptons
-# in both cases, so a ratio built from this card and the QCD-only card is a
-# QED-shower ratio at fixed ISR, not an ISR correction.  Use the ISR_ON /
-# ISR_OFF card pair for ISR corrections.
+# LeptonPDF is ThePEG::LeptonLeptonPDF, the O(alpha^2) soft-photon-exponentiated
+# collinear QED electron structure function.  It is the same class of model as
+# PYTHIA's PDF:lepton and Sherpa's PDFESherpa, so this card together with the
+# ISR_OFF card forms a genuine ISR ON/OFF pair at fixed QED shower settings.
 read @EECOLLIDER@
 
 cd /Herwig/MatrixElements
@@ -13,6 +11,10 @@ insert SubProcess:MatrixElements 0 MEee2gZ2qq
 
 cd /Herwig/Shower
 set ShowerHandler:Interactions QEDQCD
+
+# Beam ISR ON (this is also the Herwig default for e+e- beams).
+set /Herwig/Particles/e-:PDF /Herwig/Partons/LeptonPDF
+set /Herwig/Particles/e+:PDF /Herwig/Partons/LeptonPDF
 
 cd /Herwig/Generators
 set EventGenerator:EventHandler:LuminosityFunction:Energy @ENERGY@

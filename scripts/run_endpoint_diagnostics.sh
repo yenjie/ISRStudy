@@ -33,6 +33,14 @@ off_samples=(
   "Pythia8315_Vincia_OFF:mc_Pythia8315_Vincia_ISR_OFF.root"
 )
 
+# KKMC samples live in their own production directory; select them with
+# SAMPLE_SET=KKMC and REAL_DIR pointing at that directory.
+kkmc_samples=(
+  "KKMC424_ISR_OFF:mc_KKMC424_ISR_OFF.root"
+  "KKMC424_ISR_ON:mc_KKMC424_ISR_ON.root"
+  "KKMC424_ISR_ON_IFI:mc_KKMC424_ISR_ON_IFI.root"
+)
+
 samples=()
 case "$SAMPLE_SET" in
   ON)
@@ -44,8 +52,11 @@ case "$SAMPLE_SET" in
   ALL)
     samples=("${on_samples[@]}" "${off_samples[@]}")
     ;;
+  KKMC)
+    samples=("${kkmc_samples[@]}")
+    ;;
   *)
-    echo "Unknown SAMPLE_SET=$SAMPLE_SET; use ON, OFF, or ALL" >&2
+    echo "Unknown SAMPLE_SET=$SAMPLE_SET; use ON, OFF, ALL, or KKMC" >&2
     exit 2
     ;;
 esac

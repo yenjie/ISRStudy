@@ -45,7 +45,13 @@ Each generated ROOT file contains one `TTree` named `Events`.
 | `isHadron` | `std::vector<char>` | Hadron flag. |
 | `isLepton` | `std::vector<char>` | Lepton flag. |
 | `isPhoton` | `std::vector<char>` | Photon flag. |
-| `isISRPhoton` | `std::vector<char>` | Explicit ISR photon flag. |
+| `isISRPhoton` | `std::vector<char>` | Explicit ISR photon flag.  For the PYTHIA path: a final-state photon with an immediate lepton mother.  For the HepMC path: a photon whose production vertex has an incoming `e+-` and at most four outgoing particles, or a photon with `|cos(theta)| > 0.9999`.  The vertex-size guard is required because a short/flat HepMC record hangs the whole final state off the beam vertex; without it the rule tags every photon in the event.  The flag is evaluated for ISR OFF samples too, so that any residual mis-tag cancels in OFF/ON ratios. |
+
+> **Note on the 3M `real_3M_20260511` files.** Those files predate the tagging fix
+> described above and predate the all-final `thrust` default.  In them,
+> `isISRPhoton` is only set for ISR ON samples, it tags every photon in the Sherpa
+> events, and the stored `thrust` branch is the visible, tagged-photon-excluded
+> definition A rather than the nominal N.  See `docs/ISR_MODELLING_AND_KKMC.md`.
 
 ## Default Analysis Selection
 

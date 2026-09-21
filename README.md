@@ -34,12 +34,25 @@ particle-level observables, and parton-level observables.
   with low visible mass, longitudinal boost, or explicit ISR photon activity.
 - `macros/plot_endpoint_diagnostics.C`: 2D endpoint-correlation plotter and
   summary-table writer for the derived diagnostic ntuples.
+- `scripts/run_kkmc_production.sh`: KKMC production driver.  Runs KKMC at the
+  Z pole in three configurations (ISR off, ISR on, ISR on with ISR-FSR
+  interference) and converts the event dump into the same `Events` schema.
+- `scripts/run_kkmc_comparison_chain.sh`: waits for the KKMC production, then
+  runs the endpoint diagnostics, the comparison macro and the figure copy.
+- `scripts/fill_kkmc_slide_numbers.py`: substitutes the measured KKMC numbers
+  into the comparison slide source so the deck cannot drift from its inputs.
+- `macros/plot_isr_model_comparison.C`: cross-generator ISR model comparison
+  including KKMC.  It uses no ISR-photon tag anywhere: radiation is measured
+  from beam-collinear photons and from the reduced hadronic mass.
 - `hepmc3toFadgen/`: Sherpa 3.0.3 to HepMC to FADGEN-exchange bridge, with a
   documented converter and a DELPHI `skeleana` validation harness.
 - `cards/`: Herwig and Sherpa standalone cards for ISR ON/OFF.
 - `docs/REAL_GENERATOR_PRODUCTION.md`: current real-generator production status,
   version references, ISR ON/OFF definitions, sample statistics, and output paths.
 - `docs/TREE_SCHEMA.md`: event and particle branch definitions.
+- `docs/ISR_MODELLING_AND_KKMC.md`: how KKMC/KKMCee treats ISR compared with
+  PYTHIA, Herwig and Sherpa, plus the audit that corrected the ISR-photon
+  tagging defects in the 3M production.
 
 The multi-GB ROOT ntuples and derived plot files are intentionally not committed
 to git.  The current outputs live under `/data2/yjlee/ISRsample/real_3M_20260511`
@@ -78,6 +91,13 @@ The generator-setting definitions are:
 
 The old fallback samples and the old 5M archive were removed from
 `/data2/yjlee/ISRsample` to avoid confusion.
+
+**Correction notice (2026-09-20).** The 3M files carry two ISR-tagging defects,
+documented in `docs/ISR_MODELLING_AND_KKMC.md`: `HEPMC3_SHORT: true` in the Sherpa
+cards made the ISR-photon tag select every photon in the event, and the tag was
+only evaluated for ISR ON samples, which invalidates thrust definitions A and C.
+Herwig's beam ISR was also never switched off.  The producer and all cards have
+been fixed; the Sherpa and Herwig samples need regenerating.
 
 Audit caveat for the existing 3M ROOT files: the current plots and CSV recompute
 visible energy from particle vectors with the `|eta| < 1.74` definition.  The
