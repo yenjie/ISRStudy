@@ -171,10 +171,14 @@ TH1D* thrustHist(const std::string& path, const std::string& name,
     // histogram has been detached from a directory.
     TH1D* h = new TH1D(name.c_str(), "", static_cast<int>(edges.size()) - 1, &edges[0]);
     h->SetDirectory(nullptr);
+    // Definition B: all stable final-state particles EXCLUDING neutrinos.  This
+    // was verified to reproduce the `tgenBefore/thrust` branch of
+    // ALEPH_Agentic_Event_Shape_Analysis to 1.5e-8 over 3000 events, so the
+    // correction here is for the same observable that analysis corrects.
     double thrust = 0.0;
     t->SetBranchStatus("*", 0);
-    t->SetBranchStatus("T_lab_allFinal_including_ISR_photons", 1);
-    t->SetBranchAddress("T_lab_allFinal_including_ISR_photons", &thrust);
+    t->SetBranchStatus("T_lab_including_ISR_photons", 1);
+    t->SetBranchAddress("T_lab_including_ISR_photons", &thrust);
     const Long64_t n = t->GetEntries();
     for (Long64_t i = 0; i < n; ++i) {
         t->GetEntry(i);
@@ -259,7 +263,7 @@ void plot_isr_model_comparison(const char* outDir =
          std::string(kRealDiag) + "/endpoint_diagnostics_Herwig730_OFF.root",
          std::string(kRealDiag) + "/endpoint_diagnostics_Herwig730_QEDshower.root",
          kOrange + 7, 22, false},
-        {"KKMC 4.24 CEEX",
+        {"KKMC 4.30 CEEX",
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_OFF.root",
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_ON.root",
          std::string(kKkmcDiag) + "/endpoint_diagnostics_KKMC424_ISR_OFF.root",
@@ -322,7 +326,7 @@ void plot_isr_model_comparison(const char* outDir =
         h->Draw("HIST SAME");
         leg0->AddEntry(h, samples[i].label.c_str(), "l");
     }
-    TH1D* hTruth = onScan["KKMC 4.24 CEEX"].hIsrTruth;
+    TH1D* hTruth = onScan["KKMC 4.30 CEEX"].hIsrTruth;
     if (hTruth && hTruth->Integral() > 0) {
         hTruth->Scale(1.0 / hTruth->Integral());
         hTruth->SetLineColor(kRed + 1);
@@ -387,6 +391,43 @@ void plot_isr_model_comparison(const char* outDir =
         graphs[i]->Draw("P SAME");
         leg->AddEntry(graphs[i], samples[i].label.c_str(), "lp");
     }
+    // Reference: the ISR correction the ALEPH analysis itself uses, from its own
+    // standalone Pythia8 samples and its own thrust branch.
+    {
+        TH1D* aOff = new TH1D("a_off", "", static_cast<int>(edges.size()) - 1, &edges[0]);
+        TH1D* aOn = new TH1D("a_on", "", static_cast<int>(edges.size()) - 1, &edges[0]);
+        aOff->SetDirectory(nullptr);
+        aOn->SetDirectory(nullptr);
+        const char* ap[2] = {
+            "/raid5/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/Isr/isr0_ALL.root",
+            "/raid5/data/yjlee/ALEPH_Agentic_Event_Shape_Analysis/Isr/isr1_ALL.root"};
+        bool ok = true;
+        for (int k = 0; k < 2; ++k) {
+            TFile* af = TFile::Open(ap[k]);
+            if (!af || af->IsZombie()) { ok = false; break; }
+            TTree* at = static_cast<TTree*>(af->Get("tgenBefore"));
+            if (!at) { ok = false; af->Close(); break; }
+            float thr = 0;
+            at->SetBranchStatus("*", 0);
+            at->SetBranchStatus("thrust", 1);
+            at->SetBranchAddress("thrust", &thr);
+            const Long64_t an = at->GetEntries();
+            for (Long64_t i = 0; i < an; ++i) { at->GetEntry(i); (k == 0 ? aOff : aOn)->Fill(thr); }
+            af->Close();
+        }
+        if (ok) {
+            TGraphErrors* ga = ratioGraph(aOff, aOn, 0.0);
+            if (ga) {
+                ga->SetLineColor(kGreen + 3);
+                ga->SetMarkerColor(kGreen + 3);
+                ga->SetMarkerStyle(34);
+                ga->SetMarkerSize(1.2);
+                ga->SetLineWidth(2);
+                ga->Draw("P SAME");
+                leg->AddEntry(ga, "ALEPH analysis Pythia8 (in use)", "lp");
+            }
+        }
+    }
     leg->Draw();
     TLatex wip1;
     wip1.SetNDC();
@@ -429,7 +470,7 @@ void plot_isr_model_comparison(const char* outDir =
         wip2.SetNDC();
         wip2.SetTextSize(0.036);
         wip2.SetTextColor(kGray + 2);
-        wip2.DrawLatex(0.13, 0.935, "KKMC 4.24, ISR study, work in progress");
+        wip2.DrawLatex(0.13, 0.935, "KKMC 4.30, ISR study, work in progress");
         wip2.DrawLatex(0.70, 0.935, "stat. only");
         c2->SaveAs(Form("%s/isr_model_kkmc_ifi.png", outDir));
         c2->SaveAs(Form("%s/isr_model_kkmc_ifi.pdf", outDir));

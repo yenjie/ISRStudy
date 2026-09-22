@@ -487,7 +487,7 @@ Endpoint correction, last ALEPH thrust bin, definition N:
 | PYTHIA 8.315 Vincia | 1.170 +- 0.010 | -0.00083 |
 | Sherpa 3.0.3 `PDFESherpa` | 1.150 +- 0.007 | -0.00084 |
 | Sherpa 3.0.3 YFS | 1.141 +- 0.007 | -0.00082 |
-| **KKMC 4.24 CEEX** | **1.097 +- 0.015** | **-0.00070** |
+| **KKMC 4.30 CEEX** | **1.097 +- 0.015** | **-0.00070** |
 | Herwig 7.3.0, ISR not toggled | 1.021 +- 0.005 | -0.00032 |
 
 **This is the main physics result of the comparison.**  The four collinear
@@ -515,7 +515,114 @@ Interference is consistent with no effect on the thrust spectrum at the Z peak,
 which is the expected suppression on a narrow resonance.  It can be dropped from
 the uncertainty budget for this observable.
 
-## 7. References
+## 7. Consistency audit against ALEPH_Agentic_Event_Shape_Analysis
+
+Performed after the first version of the comparison deck, at the request to
+check the code, the ratios, the KKMC version, and the thrust definition.
+
+### 7.1 Thrust definition: was inconsistent, now fixed
+
+The ALEPH event-shape analysis corrects its unfolded thrust with
+`C_ISR(j) = N_noISR(j) / N_ISR(j)` built from the `tgenBefore/thrust` branch of
+`Isr/isr0_ALL.root` and `Isr/isr1_ALL.root` (2.5M events each).  That branch is
+not documented in the note, so the particle selection was determined by
+recomputing thrust from the stored particles under several definitions and
+comparing:
+
+| Particle set | events matching the stored branch | mean abs. difference |
+|---|---|---|
+| all final-state particles | 2358 / 3000 | 9.6e-4 |
+| **final state excluding neutrinos** | **3000 / 3000** | **1.5e-8** |
+
+So the ALEPH analysis thrust is all stable final-state particles **excluding
+neutrinos**, photons included.  Final state means Pythia status > 0; the tree
+also stores decayed entries, which must be skipped.
+
+The first version of the comparison used definition N, all stable final-state
+particles **including** neutrinos, and said so on the slides.  That was the
+wrong observable.  The comparison now uses definition B, which is the ALEPH
+definition.  Numerically the change is small, at most 0.002 in `C_ISR`, so no
+conclusion moves, but the stated definition was wrong and is corrected.
+
+| Sample | `C_ISR` last bin, def N (was) | def B (ALEPH, now) |
+|---|---|---|
+| PYTHIA 8.315 | 1.166 +- 0.009 | 1.167 +- 0.009 |
+| PYTHIA Vincia | 1.170 +- 0.010 | 1.170 +- 0.010 |
+| Sherpa PDFESherpa | 1.150 +- 0.007 | 1.149 +- 0.007 |
+| Sherpa YFS | 1.141 +- 0.007 | 1.140 +- 0.007 |
+| KKMC CEEX | 1.097 +- 0.015 | 1.094 +- 0.015 |
+| Herwig, ISR not toggled | 1.021 +- 0.005 | 1.021 +- 0.005 |
+
+Binning was also checked: the published ALEPH thrust table
+(HEPData ins636645 Table 54) is uniform from 0.58 to 1.00 in steps of 0.01, which
+is what the macro assumes.
+
+### 7.2 Cross-check against the correction the analysis applies
+
+Recomputing `C_ISR` from their own two files reproduces their cached
+`Isr/isr_corr_precomputed.root` exactly, including 1.1996 in the last bin, so
+their cache is built by binning the branch as T directly.
+
+Comparing their Pythia8 correction with ours, in the same definition and bins:
+
+| bin | ALEPH analysis | this study, PYTHIA 8.315 | difference |
+|---|---|---|---|
+| 0.94-0.95 | 0.9651 +- 0.0031 | 0.9754 +- 0.0029 | -2.5 sigma |
+| 0.95-0.96 | 0.9756 +- 0.0027 | 0.9766 +- 0.0025 | -0.3 sigma |
+| 0.96-0.97 | 0.9859 +- 0.0024 | 0.9872 +- 0.0022 | -0.4 sigma |
+| 0.97-0.98 | 1.0204 +- 0.0022 | 1.0189 +- 0.0020 | +0.5 sigma |
+| 0.98-0.99 | 1.0905 +- 0.0030 | 1.0840 +- 0.0027 | +1.6 sigma |
+| 0.99-1.00 | 1.1996 +- 0.0108 | 1.1673 +- 0.0092 | +2.3 sigma |
+
+Agreement is good through the bulk but drifts at the endpoint, in the same
+direction in the last two bins.  That is larger than statistics comfortably
+explains and is unresolved: the generation settings for their samples are not in
+that repository, so the Pythia version, tune, ISR-off switches and flavour
+selection cannot be compared.  This matters for the headline number, because
+measured against the correction actually in use the KKMC difference grows from
+0.073 +- 0.017 to 0.105 +- 0.019.
+
+### 7.3 Two documentation problems in that repository, for its owner
+
+- `sections/Datasets.tex` states the ISR correction "is not yet implemented in
+  the current analysis", while `sections/AnalysisMethod.tex` and
+  `sections/SystematicUncertainties.tex` describe it as applied.  One of these
+  is stale.
+- `sections/AnalysisMethod.tex` says the `tgenBefore/thrust` branch is "stored
+  as `1-T`, transformed back to T".  The branch holds T directly (mean 0.931,
+  range 0.56 to 0.999), and the cached correction is consistent with binning T
+  without any transformation.  The computation looks right and the sentence
+  looks wrong, but it should be reconciled so nobody applies the transformation.
+
+### 7.4 KKMC version: mislabelled, and not the newest release
+
+The banner of the built program reads `Version 4.30, October 2020`, not 4.24 as
+`configure.ac` suggests and as the first version of the deck claimed.  All
+labels are corrected to 4.30.
+
+The current release is **KKMCee v5.00.02**, a C++ rewrite.  Its release notes
+describe the rewrite, FOAM, HepMC3 output and speed, with no change of physics
+content, and the CPC paper states that 5.00 reproduces the Fortran benchmarks.
+The repository master branch carries only the Fortran tree, which is why 4.30 is
+what got built.  Repeating the measurement on v5.00.02 remains an open check.
+
+CEEX was verified to be active for quarks rather than silently falling back to
+EEX: `KK2f/KK2f.f` gates it on `m_KeyGPS != 0 && SvarQ > MminCEEX^2` with
+`MminCEEX = 20 GeV` from the quark entries of `.KK2f_defaults`, and at the Z pole
+`SvarQ` is about 8300 GeV^2.
+
+### 7.5 Checks that passed
+
+- The `C_ISR` ratio and its independent-Poisson error were reproduced by a
+  separate macro from the same inputs.
+- KKMC cross sections bracket the radiative correction correctly:
+  41.33 +- 0.01 nb with radiation off against the LEP pole value 41.48 nb, and
+  30.38 +- 0.01 nb with radiation on, a 26.5% reduction.
+- Each KKMC run directory's `pro.input` was checked against its own output
+  banner and dump header, confirming that `KeyISR` and `KeyINT` are what the
+  sample names claim.
+
+## 8. References
 
 - S. Jadach, B.F.L. Ward, Z. Was, *The precision Monte Carlo event generator KK
   for two-fermion final states in e+e- collisions*, Comput. Phys. Commun. 130

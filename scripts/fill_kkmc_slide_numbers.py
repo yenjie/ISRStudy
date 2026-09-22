@@ -60,7 +60,7 @@ def main():
     ap.add_argument("--results", required=True)
     ap.add_argument("--runlog", required=True)
     ap.add_argument("--slides", required=True)
-    ap.add_argument("--label", default="KKMC 4.24 CEEX")
+    ap.add_argument("--label", default="KKMC 4.30 CEEX")
     args = ap.parse_args()
 
     summary = read_summary(os.path.join(args.results, "isr_model_summary.csv"))
