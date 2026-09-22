@@ -21,7 +21,15 @@
 //
 // Statistical uncertainties are computed from the spread of the PER-EVENT EEC
 // across events, not from sqrt(sum w^2) over pairs.  Pairs inside one event are
-// correlated, so the pair-level estimate would be too small.
+// correlated, so the pair-level estimate would be too small.  The same applies
+// to the coarse z regions of the summary table, which are therefore accumulated
+// per event rather than by adding the per-bin errors in quadrature.
+//
+// This macro only writes tables:
+//   eec_isr_correction.csv          per-bin, all 200 bins
+//   eec_isr_correction_regions.csv  coarse z regions, for the slide table
+// The figure is made by macros/plot_eec_isr_doublelog.C from the per-bin file,
+// so restyling never requires rerunning the event loop.
 //
 // Usage:
 //   root -l -b -q 'macros/plot_eec_isr_correction.C("/output/dir")'
@@ -79,9 +87,23 @@ int findBin(double v, const std::vector<double>& e)
     return (i >= 0 && i + 1 < static_cast<int>(e.size())) ? i : -1;
 }
 
+// Coarse z regions for the summary table.  The correction is quoted per region
+// rather than per bin because the analysis applies it over ranges, and because
+// a single bin of the 200-bin grid has too little weight at the two ends.
+constexpr int kNReg = 6;
+const char* kRegName[kNReg] = {
+    "z < 1e-3",  "1e-3 < z < 0.1", "0.1 < z < 0.9",
+    "0.9 < z < 0.999", "z > 0.999", "all z"};
+const double kRegLo[kNReg] = {0.0, 1e-3, 0.1, 0.9, 0.999, 0.0};
+const double kRegHi[kNReg] = {1e-3, 0.1, 0.9, 0.999, 1.0, 1.0};
+
 struct EecResult {
     std::vector<double> sumW;    // sum over events of the per-event EEC
     std::vector<double> sumW2;   // sum of squares of the per-event EEC
+    // Region sums are accumulated PER EVENT and only then squared, so the
+    // uncertainty on a region accounts for the correlation between the bins
+    // inside it.  Adding the per-bin errors in quadrature would not.
+    std::vector<double> regW, regW2;
     Long64_t events = 0;
     bool ok = false;
 };
@@ -92,6 +114,8 @@ EecResult buildEec(const std::string& path, Long64_t maxEvents)
     EecResult r;
     r.sumW.assign(kAngleBins, 0.0);
     r.sumW2.assign(kAngleBins, 0.0);
+    r.regW.assign(kNReg, 0.0);
+    r.regW2.assign(kNReg, 0.0);
 
     TFile* f = TFile::Open(path.c_str());
     if (!f || f->IsZombie()) { std::cerr << "  [skip] cannot open " << path << std::endl; return r; }
@@ -114,7 +138,15 @@ EecResult buildEec(const std::string& path, Long64_t maxEvents)
     if (maxEvents > 0 && n > maxEvents) n = maxEvents;
 
     const std::vector<double>& ze = zEdges();
+    // Which regions each bin belongs to (a bin can be in "all z" and one other).
+    std::vector<std::vector<int>> binReg(kAngleBins);
+    for (int b = 0; b < kAngleBins; ++b) {
+        const double zc = 0.5 * (ze[b] + ze[b + 1]);
+        for (int g = 0; g < kNReg; ++g)
+            if (zc >= kRegLo[g] && zc < kRegHi[g]) binReg[b].push_back(g);
+    }
     std::vector<double> evt(kAngleBins, 0.0);
+    std::vector<double> evtReg(kNReg, 0.0);
     std::vector<double> qx, qy, qz, qe;
 
     for (Long64_t i = 0; i < n; ++i) {
@@ -143,9 +175,15 @@ EecResult buildEec(const std::string& path, Long64_t maxEvents)
                 evt[bin] += qe[a] * qe[b] / (kSqrtS * kSqrtS);
             }
         }
+        std::fill(evtReg.begin(), evtReg.end(), 0.0);
         for (int b = 0; b < kAngleBins; ++b) {
             r.sumW[b] += evt[b];
             r.sumW2[b] += evt[b] * evt[b];
+            for (int g : binReg[b]) evtReg[g] += evt[b];
+        }
+        for (int g = 0; g < kNReg; ++g) {
+            r.regW[g] += evtReg[g];
+            r.regW2[g] += evtReg[g] * evtReg[g];
         }
         ++r.events;
         if ((i + 1) % 500000 == 0) std::cout << "    " << i + 1 << "/" << n << std::endl;
@@ -167,11 +205,27 @@ void meanAndError(const EecResult& r, int b, double& mean, double& err)
     err = var > 0 ? std::sqrt(var / n) : 0.0;
 }
 
+// Same, for a region.
+void regionMeanAndError(const EecResult& r, int g, double& mean, double& err)
+{
+    mean = err = 0;
+    if (!r.ok) return;
+    const double n = static_cast<double>(r.events);
+    mean = r.regW[g] / n;
+    const double var = r.regW2[g] / n - mean * mean;
+    err = var > 0 ? std::sqrt(var / n) : 0.0;
+}
+
 }  // namespace
 
+// sampleIndex >= 0 processes that one sample only and tags the output files with
+// it, so the six pairs can be run as six concurrent jobs; the event loop is
+// O(N_charged^2) per event and takes hours in one process.
+// scripts/run_eec_isr_correction.sh drives that and concatenates the parts.
 void plot_eec_isr_correction(const char* outDir =
                                  "/data2/yjlee/ISRsample/kkmc_1M_20260921/results",
-                             Long64_t maxEvents = -1)
+                             Long64_t maxEvents = -1,
+                             int sampleIndex = -1)
 {
     gStyle->SetOptStat(0);
     gStyle->SetPadTickX(1);
@@ -195,37 +249,26 @@ void plot_eec_isr_correction(const char* outDir =
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_ON.root", kRed + 1, 29},
     };
 
+    if (sampleIndex >= 0) {
+        if (sampleIndex >= static_cast<int>(samples.size())) {
+            std::cerr << "sampleIndex out of range" << std::endl;
+            return;
+        }
+        samples = {samples[sampleIndex]};
+    }
+    const std::string tag = sampleIndex >= 0 ? Form("_s%d", sampleIndex) : "";
+
     const std::vector<double>& ze = zEdges();
-    std::ofstream csv(std::string(outDir) + "/eec_isr_correction.csv");
+    std::ofstream csv(std::string(outDir) + "/eec_isr_correction" + tag + ".csv");
     // The z bin edges crowd towards 1 on the back-to-back side; at the default
     // 6 significant digits several of the highest bins print with z_low equal to
     // z_high, which makes the file useless for forming a density there.
     csv << std::setprecision(12);
     csv << "sample,bin,z_low,z_high,eec_off,eec_off_err,eec_on,eec_on_err,c_isr,c_isr_err\n";
 
-    std::vector<TGraphErrors*> graphs;
-    TCanvas* c1 = new TCanvas("c_eec", "", 1000, 800);
-    c1->SetTopMargin(0.09);
-    c1->SetLeftMargin(0.13);
-    c1->SetLogx();
-    TH1D* frame = new TH1D("frame_eec", "", 1, ze[1], 1.0);
-    frame->SetMinimum(0.90);
-    frame->SetMaximum(1.20);
-    frame->GetXaxis()->SetTitle("z = (1 - cos#theta)/2");
-    frame->GetYaxis()->SetTitle("C_{ISR} = EEC_{ISR OFF} / EEC_{ISR ON}");
-    frame->GetXaxis()->SetTitleSize(0.045);
-    frame->GetYaxis()->SetTitleSize(0.045);
-    frame->GetXaxis()->SetLabelSize(0.040);
-    frame->GetYaxis()->SetLabelSize(0.040);
-    frame->Draw();
-    TLine* unity = new TLine(ze[1], 1.0, 1.0, 1.0);
-    unity->SetLineStyle(2);
-    unity->SetLineColor(kGray + 1);
-    unity->Draw();
-    TLegend* leg = new TLegend(0.17, 0.62, 0.66, 0.88);
-    leg->SetBorderSize(0);
-    leg->SetFillStyle(0);
-    leg->SetTextSize(0.029);
+    std::ofstream rcsv(std::string(outDir) + "/eec_isr_correction_regions" + tag + ".csv");
+    rcsv << std::setprecision(8);
+    rcsv << "sample,region,z_low,z_high,eec_off,eec_off_err,eec_on,eec_on_err,c_isr,c_isr_err\n";
 
     for (const auto& s : samples) {
         std::cout << "[eec] " << s.label << std::endl;
@@ -233,7 +276,6 @@ void plot_eec_isr_correction(const char* outDir =
         EecResult on = buildEec(s.on, maxEvents);
         if (!off.ok || !on.ok) continue;
 
-        std::vector<double> x, y, ex, ey;
         double intOff = 0, intOn = 0;
         for (int b = 0; b < kAngleBins; ++b) {
             double mo, eo, mn, eN;
@@ -245,39 +287,36 @@ void plot_eec_isr_correction(const char* outDir =
             if (mo > 0 && mn > 0) {
                 r = mo / mn;
                 er = r * std::sqrt((eo / mo) * (eo / mo) + (eN / mn) * (eN / mn));
-                const double zc = 0.5 * (ze[b] + ze[b + 1]);
-                x.push_back(zc); y.push_back(r); ex.push_back(0.0); ey.push_back(er);
             }
             csv << "\"" << s.label << "\"," << b << "," << ze[b] << "," << ze[b + 1] << ","
                 << mo << "," << eo << "," << mn << "," << eN << "," << r << "," << er << "\n";
         }
+        for (int g = 0; g < kNReg; ++g) {
+            double mo, eo, mn, eN;
+            regionMeanAndError(off, g, mo, eo);
+            regionMeanAndError(on, g, mn, eN);
+            double r = 0, er = 0;
+            if (mo > 0 && mn > 0) {
+                r = mo / mn;
+                er = r * std::sqrt((eo / mo) * (eo / mo) + (eN / mn) * (eN / mn));
+            }
+            rcsv << "\"" << s.label << "\",\"" << kRegName[g] << "\"," << kRegLo[g] << ","
+                 << kRegHi[g] << "," << mo << "," << eo << "," << mn << "," << eN << ","
+                 << r << "," << er << "\n";
+            std::cout << "  [region] " << kRegName[g] << "  C_ISR = " << r
+                      << " +- " << er << std::endl;
+        }
+
         std::cout << "  integral EEC: OFF " << intOff << "  ON " << intOn
                   << "  ratio " << (intOn > 0 ? intOff / intOn : 0) << std::endl;
         csv << "\"" << s.label << "\",integral,,," << intOff << ",," << intOn << ","
             << "," << (intOn > 0 ? intOff / intOn : 0) << ",\n";
 
-        if (x.empty()) continue;
-        TGraphErrors* g = new TGraphErrors(static_cast<int>(x.size()), &x[0], &y[0], &ex[0], &ey[0]);
-        g->SetLineColor(s.color);
-        g->SetMarkerColor(s.color);
-        g->SetMarkerStyle(s.marker);
-        g->SetMarkerSize(0.9);
-        g->SetLineWidth(2);
-        g->Draw("P SAME");
-        leg->AddEntry(g, s.label.c_str(), "lp");
-        graphs.push_back(g);
     }
+
     csv.close();
+    rcsv.close();
 
-    leg->Draw();
-    TLatex tx;
-    tx.SetNDC();
-    tx.SetTextSize(0.032);
-    tx.SetTextColor(kGray + 2);
-    tx.DrawLatex(0.13, 0.935, "Charged EEC, ISR study, work in progress");
-    tx.DrawLatex(0.62, 0.935, "stat. uncertainties only");
-    c1->SaveAs(Form("%s/eec_isr_correction.png", outDir));
-    c1->SaveAs(Form("%s/eec_isr_correction.pdf", outDir));
-
-    std::cout << "[done] wrote EEC ISR correction to " << outDir << std::endl;
+    std::cout << "[done] wrote EEC ISR correction tables to " << outDir
+              << " (plot with macros/plot_eec_isr_doublelog.C)" << std::endl;
 }

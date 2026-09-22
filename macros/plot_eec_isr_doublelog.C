@@ -76,6 +76,15 @@ double toD(const std::string& s)
     return std::atof(s.c_str());
 }
 
+// Legend labels.  The CSV sample names carry qualifications that are stated on
+// the slide instead, and that would not fit a two-column legend.
+std::string legendLabel(const std::string& sample)
+{
+    if (sample == "Herwig 7.3.0 QED shower, ISR unchanged")
+        return "Herwig 7.3.0 QED shower";
+    return sample;
+}
+
 // Index of the bin whose z centre is closest to a target z.
 int closestIndex(const std::vector<double>& centre, double target)
 {
@@ -171,7 +180,7 @@ void plot_eec_isr_doublelog(const char* dir =
     TPad* top = new TPad("top", "", 0, 0.34, 1, 1);
     TPad* bot = new TPad("bot", "", 0, 0, 1, 0.34);
     top->SetLeftMargin(0.13); top->SetRightMargin(0.03);
-    top->SetTopMargin(0.06);  top->SetBottomMargin(0.015);
+    top->SetTopMargin(0.08);  top->SetBottomMargin(0.015);
     bot->SetLeftMargin(0.13); bot->SetRightMargin(0.03);
     bot->SetTopMargin(0.015); bot->SetBottomMargin(0.30);
     top->SetLogy();
@@ -196,12 +205,15 @@ void plot_eec_isr_doublelog(const char* dir =
     configureIndexAxis(ftop, centre, false);
     ftop->Draw();
 
-    // The density dips towards z = 1/2, so the centre-bottom of the pad is the
-    // empty space.
-    TLegend* leg = new TLegend(0.30, 0.07, 0.83, 0.37);
+    // The bowl towards z = 1/2 looks like free space but is bounded by the two
+    // descending branches, so a six-entry legend placed there has the curves
+    // running through the text.  The band above the plateaus is empty across
+    // the full width, which is why the frame maximum is set well above them.
+    TLegend* leg = new TLegend(0.17, 0.62, 0.99, 0.88);
     leg->SetBorderSize(0);
     leg->SetFillStyle(0);
-    leg->SetTextSize(0.033);
+    leg->SetTextSize(0.028);
+    leg->SetNColumns(2);
 
     std::vector<TGraphErrors*> keep;
     for (const std::string& name : order) {
@@ -224,7 +236,7 @@ void plot_eec_isr_doublelog(const char* dir =
         g->SetMarkerStyle(s.marker);
         g->SetMarkerSize(0.7);
         g->Draw("L SAME");
-        leg->AddEntry(g, name.c_str(), "l");
+        leg->AddEntry(g, legendLabel(name).c_str(), "l");
         keep.push_back(g);
     }
     leg->Draw();
@@ -232,11 +244,13 @@ void plot_eec_isr_doublelog(const char* dir =
     TLatex tx;
     tx.SetNDC();
     tx.SetTextFont(42);
-    tx.SetTextSize(0.040);
-    tx.DrawLatex(0.17, 0.91, "Charged EEC, particle level");
-    tx.SetTextSize(0.031);
+    // Above the frame line, so the legend gets the whole empty band inside it.
+    tx.SetTextSize(0.038);
+    tx.DrawLatex(0.13, 0.935, "Charged EEC, particle level");
+    tx.SetTextSize(0.030);
     tx.SetTextColor(kGray + 2);
-    tx.DrawLatex(0.17, 0.865, "ISR study, work in progress");
+    tx.SetTextAlign(31);
+    tx.DrawLatex(0.97, 0.935, "ISR study, work in progress");
 
     // ---------------------------------------------------------------- bottom
     bot->cd();

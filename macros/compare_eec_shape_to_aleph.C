@@ -43,10 +43,14 @@ void compare_eec_shape_to_aleph(
     fgets(line, sizeof(line), fp);
     while (fgets(line, sizeof(line), fp)) {
         std::string l(line);
-        const std::string key = std::string(ourSample) + ",";
-        const size_t p = l.find(key);
+        // The sample field is quoted by the writer; older files are not.
+        const std::string quoted = "\"" + std::string(ourSample) + "\",";
+        const std::string bare = std::string(ourSample) + ",";
+        size_t p = l.find(quoted);
+        size_t klen = quoted.size();
+        if (p == std::string::npos) { p = l.find(bare); klen = bare.size(); }
         if (p == std::string::npos) continue;
-        std::string rest = l.substr(p + key.size());
+        std::string rest = l.substr(p + klen);
         int bin = 0;
         double a = 0, b = 0, eoff = 0, eofferr = 0, eon = 0;
         if (sscanf(rest.c_str(), "%d,%lf,%lf,%lf,%lf,%lf", &bin, &a, &b, &eoff,
