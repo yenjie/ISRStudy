@@ -28,6 +28,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -196,6 +197,10 @@ void plot_eec_isr_correction(const char* outDir =
 
     const std::vector<double>& ze = zEdges();
     std::ofstream csv(std::string(outDir) + "/eec_isr_correction.csv");
+    // The z bin edges crowd towards 1 on the back-to-back side; at the default
+    // 6 significant digits several of the highest bins print with z_low equal to
+    // z_high, which makes the file useless for forming a density there.
+    csv << std::setprecision(12);
     csv << "sample,bin,z_low,z_high,eec_off,eec_off_err,eec_on,eec_on_err,c_isr,c_isr_err\n";
 
     std::vector<TGraphErrors*> graphs;

@@ -34,6 +34,27 @@ struct Series {
     int marker = 20;
 };
 
+// Exact copy of EEC::ThetaEdges() / EEC::ZEdges().  The edges are rebuilt here
+// rather than taken from the CSV so that the bin widths, which shrink to ~1e-7
+// at both ends, are exact.
+const std::vector<double>& zEdges()
+{
+    static const std::vector<double> edges = []() {
+        const double middle = std::acos(-1.0) / 2.0;
+        const double thetaMin = 0.002;
+        std::vector<double> th(kAngleBins + 1), z(kAngleBins + 1);
+        for (int i = 0; i <= kAngleBins / 2; ++i) {
+            const double low = std::exp(std::log(thetaMin) +
+                (std::log(middle) - std::log(thetaMin)) * i / (kAngleBins / 2));
+            th[i] = low;
+            th[kAngleBins - i] = 2.0 * middle - low;
+        }
+        for (int i = 0; i <= kAngleBins; ++i) z[i] = (1.0 - std::cos(th[i])) / 2.0;
+        return z;
+    }();
+    return edges;
+}
+
 // Split a CSV line, honouring the quoted sample field.
 std::vector<std::string> splitCsv(const std::string& line)
 {
@@ -158,20 +179,26 @@ void plot_eec_isr_doublelog(const char* dir =
     bot->Draw();
 
     // ---------------------------------------------------------------- top
+    // The spectrum must be a DENSITY.  The bin widths span five orders of
+    // magnitude (1.4e-7 at both ends against 5.1e-2 at z = 1/2), so plotting the
+    // per-bin sum shows the width variation rather than the physics: it turns
+    // the collinear and back-to-back peaks into troughs and puts a spurious
+    // bump at z = 1/2 where the bins are widest.
+    const std::vector<double>& ze = zEdges();
     top->cd();
     TH1D* ftop = new TH1D("ftop", "", kAngleBins, 0, kAngleBins);
-    ftop->SetMinimum(2e-5);
-    ftop->SetMaximum(0.2);
-    ftop->GetYaxis()->SetTitle("EEC per event, ISR on");
+    ftop->SetMinimum(2e-2);
+    ftop->SetMaximum(2e3);
+    ftop->GetYaxis()->SetTitle("dEEC/dz per event, ISR on");
     ftop->GetYaxis()->SetTitleSize(0.050);
     ftop->GetYaxis()->SetLabelSize(0.042);
     ftop->GetYaxis()->SetTitleOffset(1.20);
     configureIndexAxis(ftop, centre, false);
     ftop->Draw();
 
-    // The EEC peaks near 2.5e-3 per event, so the whole upper band of the pad
-    // is empty; the legend goes there rather than over the curves.
-    TLegend* leg = new TLegend(0.17, 0.52, 0.72, 0.82);
+    // The density dips towards z = 1/2, so the centre-bottom of the pad is the
+    // empty space.
+    TLegend* leg = new TLegend(0.30, 0.07, 0.83, 0.37);
     leg->SetBorderSize(0);
     leg->SetFillStyle(0);
     leg->SetTextSize(0.033);
@@ -182,10 +209,15 @@ void plot_eec_isr_doublelog(const char* dir =
         if (it == series.end()) continue;
         const Series& s = it->second;
         std::vector<double> x(s.eecOn.size()), ex(s.eecOn.size(), 0.0);
-        for (size_t i = 0; i < x.size(); ++i) x[i] = i + 0.5;
+        std::vector<double> dens(s.eecOn.size()), densErr(s.eecOn.size());
+        for (size_t i = 0; i < x.size(); ++i) {
+            x[i] = i + 0.5;
+            const double w = ze[i + 1] - ze[i];
+            dens[i] = w > 0 ? s.eecOn[i] / w : 0.0;
+            densErr[i] = w > 0 ? s.eecOnErr[i] / w : 0.0;
+        }
         TGraphErrors* g = new TGraphErrors(static_cast<int>(x.size()), &x[0],
-            const_cast<double*>(&s.eecOn[0]), &ex[0],
-            const_cast<double*>(&s.eecOnErr[0]));
+            &dens[0], &ex[0], &densErr[0]);
         g->SetLineColor(s.color);
         g->SetMarkerColor(s.color);
         g->SetLineWidth(2);
