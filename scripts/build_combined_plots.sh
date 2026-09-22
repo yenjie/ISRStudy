@@ -13,6 +13,7 @@ PAGES=(
   "$RES/isr_model_photon_energy.pdf"            # radiated photon energy
   "$RES/isr_model_kkmc_ifi.pdf"                 # initial-final interference
   "$RES/eec_isr_correction_doublelog_cropped.pdf"  # charged EEC, double-log
+  "$RES/eec_isr_verification_cropped.pdf"          # charged EEC, verification
 )
 
 for p in "${PAGES[@]}"; do
