@@ -30,6 +30,8 @@ namespace {
 
 const char* kRealNtup = "/data2/yjlee/ISRsample/real_3M_20260511";
 const char* kKkmcNtup = "/data2/yjlee/ISRsample/kkmc_1M_20260921";
+const char* kKkmcee5Ntup = gSystem->Getenv("KKMCEE5_OUT") ?
+    gSystem->Getenv("KKMCEE5_OUT") : "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002";
 constexpr double kSqrtS = 91.1876;
 
 // Weighted means: m = A/W, var(m) = (B - 2mC + m^2 D) / W^2 with
@@ -130,8 +132,8 @@ void verify_eec_isr_correction(const char* outDir =
          std::string(kRealNtup) + "/mc_Herwig730_QEDshower.root"},
         {"KKMC 4.30 CEEX", std::string(kKkmcNtup) + "/mc_KKMC424_ISR_OFF.root",
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_ON.root"},
-        {"KKMCee 5.00.02 + Pythia 8.316", "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_OFF.root",
-         "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_ON.root"},
+        {"KKMCee 5.00.02 + Pythia 8.316", std::string(kKkmcee5Ntup) + "/mc_KKMCee50002_ISR_OFF.root",
+         std::string(kKkmcee5Ntup) + "/mc_KKMCee50002_ISR_ON.root"},
     };
     if (sampleIndex >= 0) {
         if (sampleIndex >= static_cast<int>(samples.size())) return;

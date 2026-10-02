@@ -22,6 +22,7 @@ ROWS = [
     ("Sherpa 3.0.3 PDFESherpa", "Sherpa 3.0.3 PDFESherpa"),
     ("Sherpa 3.0.3 YFS", "Sherpa 3.0.3 YFS"),
     ("KKMC 4.30 CEEX", "KKMC 4.30 CEEX"),
+    ("KKMCee 5.00.02 + Pythia 8.316", "KKMCee 5.00.02 + Pythia 8.316"),
     ("Herwig 7.3.0 QED shower, ISR unchanged", "Herwig 7.3.0 QED shower"),
 ]
 SQRTS = 91.1876
@@ -79,8 +80,11 @@ def main():
         d = float(v["delta"])
         de = float(v["delta_err"])
         erad, erade = d * SQRTS, de * SQRTS
-        bc = (float(summ[(key, "ON")]["mean_e_beam_collinear_gamma"]) -
-              float(summ[(key, "OFF")]["mean_e_beam_collinear_gamma"]))
+        if (key, "ON") in summ and (key, "OFF") in summ:
+            bc = (float(summ[(key, "ON")]["mean_e_beam_collinear_gamma"]) -
+                  float(summ[(key, "OFF")]["mean_e_beam_collinear_gamma"]))
+        else:
+            bc = float("nan")
         frac = bc / erad if erad > 0 else 0.0
         pred = (float(v["c_isr_predicted"]) - 1.0) * 1e3
         meas = (float(v["c_isr_exact"]) - 1.0) * 1e3

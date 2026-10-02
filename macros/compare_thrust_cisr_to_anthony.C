@@ -68,6 +68,12 @@ std::map<std::string, TH1D*> fillAll(const std::string& path, const std::string&
     TTree* t = static_cast<TTree*>(f->Get("EndpointDiagnostics"));
     if (!t) { std::cerr << "  [skip] no tree " << path << std::endl; f->Close(); return out; }
     t->SetBranchStatus("*", 0);
+    // The KKMC ISR off sample is weighted (mean 1.18, flat in thrust).  Fill
+    // weighted, then scale back to the event count so the pair's equal
+    // generated statistics footing is kept and the weights only reshape.
+    double weight = 1.0;
+    t->SetBranchStatus("event_weight", 1);
+    t->SetBranchAddress("event_weight", &weight);
     std::vector<double> val(kDefs.size(), 0.0);
     std::vector<bool> have(kDefs.size(), false);
     for (size_t d = 0; d < kDefs.size(); ++d) {
@@ -78,17 +84,18 @@ std::map<std::string, TH1D*> fillAll(const std::string& path, const std::string&
         TH1D* h = new TH1D((tag + "_" + kDefs[d].tag).c_str(), "",
                            static_cast<int>(edges.size()) - 1, &edges[0]);
         h->SetDirectory(nullptr);
+        h->Sumw2();
         out[kDefs[d].tag] = h;
     }
     const Long64_t n = t->GetEntries();
     for (Long64_t i = 0; i < n; ++i) {
         t->GetEntry(i);
         for (size_t d = 0; d < kDefs.size(); ++d)
-            if (have[d]) out[kDefs[d].tag]->Fill(val[d]);
+            if (have[d]) out[kDefs[d].tag]->Fill(val[d], weight);
     }
     for (auto& kv : out)
-        for (int b = 1; b <= kv.second->GetNbinsX(); ++b)
-            kv.second->SetBinError(b, std::sqrt(std::max(0.0, kv.second->GetBinContent(b))));
+        if (kv.second->GetSumOfWeights() > 0)
+            kv.second->Scale(static_cast<double>(n) / kv.second->GetSumOfWeights());
     std::cout << "  [fill] " << tag << "  " << n << " events" << std::endl;
     f->Close();
     return out;
@@ -147,11 +154,12 @@ void compare_thrust_cisr_to_anthony(
             std::vector<double> x, y, ex, ey;
             for (int b = 1; b <= nb; ++b) {
                 const double a = off->GetBinContent(b), c = on->GetBinContent(b);
+                const double ea = off->GetBinError(b), ec = on->GetBinError(b);
                 const double tl = 1.0 - edges[b], th = 1.0 - edges[b - 1];
                 double r = 0, er = 0;
                 if (a > 0 && c > 0) {
                     r = a / c;
-                    er = r * std::sqrt(1.0 / a + 1.0 / c);
+                    er = r * std::sqrt((ea / a) * (ea / a) + (ec / c) * (ec / c));
                     x.push_back(0.5 * (tl + th) + s.xShift);
                     y.push_back(r); ex.push_back(0.0); ey.push_back(er);
                 }
@@ -183,7 +191,9 @@ void compare_thrust_cisr_to_anthony(
             auto& fn = byFile[s.on];
             if (!fo.count(d.tag) || !fn.count(d.tag)) { printf(" %10s", "-"); continue; }
             const double a = fo[d.tag]->GetBinContent(nb), c = fn[d.tag]->GetBinContent(nb);
-            const double r = c > 0 ? a / c : 0, er = (a > 0 && c > 0) ? r * std::sqrt(1 / a + 1 / c) : 0;
+            const double ea = fo[d.tag]->GetBinError(nb), ec = fn[d.tag]->GetBinError(nb);
+            const double r = c > 0 ? a / c : 0;
+            const double er = (a > 0 && c > 0) ? r * std::sqrt((ea / a) * (ea / a) + (ec / c) * (ec / c)) : 0;
             printf(" %10.3f", r);
             tab << "\"" << s.label << "\"," << d.tag << ",\"" << d.text << "\"," << a << "," << c
                 << "," << r << "," << er << "\n";

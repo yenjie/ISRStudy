@@ -196,6 +196,10 @@ TH1D* thrustHist(const std::string& path, const std::string& name,
         t->GetEntry(i);
         h->Fill(thrust, weight);
     }
+    // The two states of a pair have equal generated event counts and the ratio
+    // is taken bin by bin on that footing, so a weighted sample is scaled back
+    // to its event count: the weights then only reshape the distribution.
+    if (h->GetSumOfWeights() > 0) h->Scale(static_cast<double>(n) / h->GetSumOfWeights());
     std::cout << "  [thrust] " << name << " entries " << n << std::endl;
     f->Close();
     return h;

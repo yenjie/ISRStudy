@@ -9,11 +9,12 @@ RES="${1:-/data2/yjlee/ISRsample/kkmc_1M_20260921/results}"
 OUT="$RES/isr_all_plots.pdf"
 
 PAGES=(
-  "$RES/isr_model_cisr_thrust.pdf"              # thrust correction, main result
+  "$RES/isr_model_cisr_thrust_with_kkmcee5.pdf" # thrust correction, seven pairs
   "$RES/isr_model_photon_energy.pdf"            # radiated photon energy
   "$RES/isr_model_kkmc_ifi.pdf"                 # initial-final interference
   "$RES/eec_isr_correction_doublelog_cropped.pdf"  # charged EEC, double-log
   "$RES/eec_isr_verification_cropped.pdf"          # charged EEC, verification
+  "$RES/isr_model_cisr_tau_with_kkmcee5_cropped.pdf" # KKMCee 5 against Anthony's
 )
 
 for p in "${PAGES[@]}"; do

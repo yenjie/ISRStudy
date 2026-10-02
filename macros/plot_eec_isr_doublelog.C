@@ -82,6 +82,8 @@ std::string legendLabel(const std::string& sample)
 {
     if (sample == "Herwig 7.3.0 QED shower, ISR unchanged")
         return "Herwig 7.3.0 QED shower";
+    if (sample == "KKMCee 5.00.02 + Pythia 8.316")
+        return "KKMCee 5.00.02 + Pythia 8";
     return sample;
 }
 
@@ -139,10 +141,10 @@ void plot_eec_isr_doublelog(const char* dir =
     const std::vector<std::string> order = {
         "Pythia 8.315", "Pythia 8.315 Vincia", "Sherpa 3.0.3 PDFESherpa",
         "Sherpa 3.0.3 YFS", "Herwig 7.3.0 QED shower, ISR unchanged",
-        "KKMC 4.30 CEEX"};
+        "KKMC 4.30 CEEX", "KKMCee 5.00.02 + Pythia 8.316"};
     const std::vector<int> colors = {kBlack, kGray + 2, kAzure + 2, kAzure + 7,
-                                     kOrange + 7, kRed + 1};
-    const std::vector<int> markers = {20, 24, 21, 25, 22, 29};
+                                     kOrange + 7, kRed + 1, kMagenta + 2};
+    const std::vector<int> markers = {20, 24, 21, 25, 22, 29, 33};
 
     std::map<std::string, Series> series;
     std::vector<double> centre;

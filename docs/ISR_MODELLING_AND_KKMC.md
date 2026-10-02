@@ -473,34 +473,34 @@ Radiation:
 | `<T_N>` | 0.93282 | 0.93212 |
 
 KKMC agrees with Sherpa `PDFESherpa` (0.216 GeV) on the amount of energy
-radiated.  The beam-collinear estimator recovers only 62% of it, and that 38%
-deficit is the radiation carrying transverse momentum, which a collinear
-structure function cannot produce.  The estimator is therefore unbiased for
-PYTHIA, Vincia, Herwig and Sherpa `PDFESherpa` and a lower limit for Sherpa YFS
-and KKMC, which explains why Sherpa YFS appeared to radiate only 0.119 GeV.
+radiated.  The fixed beam-collinear photon tag is incomplete: even for PYTHIA
+it captures only `31 +- 2%` of the energy loss inferred independently from
+charged final-state energy.  For KKMC 4.30 the tag sees 0.133 GeV more energy
+in ISR ON than OFF, versus 0.220 GeV in its generator ISR photon list.
+Consequently the tag is not a universal ISR-energy estimator; it cannot be
+used to infer that PYTHIA radiates much less than the other models.
 
-Endpoint correction, last ALEPH thrust bin, definition N:
+Endpoint correction, last ALEPH thrust bin, nominal definition B (stable final
+state excluding neutrinos, including photons):
 
 | Sample | `C_ISR` | `<T>` shift |
 |---|---|---|
-| PYTHIA 8.315 | 1.166 +- 0.009 | -0.00084 |
+| PYTHIA 8.315 | 1.167 +- 0.009 | -0.00085 |
 | PYTHIA 8.315 Vincia | 1.170 +- 0.010 | -0.00083 |
-| Sherpa 3.0.3 `PDFESherpa` | 1.150 +- 0.007 | -0.00084 |
-| Sherpa 3.0.3 YFS | 1.141 +- 0.007 | -0.00082 |
-| **KKMC 4.30 CEEX** | **1.097 +- 0.015** | **-0.00070** |
+| Sherpa 3.0.3 `PDFESherpa` | 1.142 +- 0.007 | -0.00085 |
+| Sherpa 3.0.3 YFS | 1.138 +- 0.007 | -0.00082 |
+| **KKMC 4.30 CEEX + PYTHIA 6.202** | **1.098 +- 0.015** | **-0.00076** |
+| **KKMCee 5.00.02 CEEX + PYTHIA 8.316** | **1.153 +- 0.016** | **-0.00084** |
 | Herwig 7.3.0, ISR not toggled | 1.021 +- 0.005 | -0.00032 |
 
-**This is the main physics result of the comparison.**  The four collinear
-models agree with each other; KKMC sits 3 to 4 standard deviations below them.
-The KKMC to PYTHIA difference is `0.069 +- 0.017`, about 6% of the correction,
-and it is the first defensible radiation-model uncertainty in this study.
-
-It is not a hadronization effect.  The KKMC and PYTHIA ISR OFF samples agree on
-the mean thrust to `2e-4` and on the endpoint bin population to 3%, despite
-KKMC using PYTHIA 6.202 and the other samples PYTHIA 8.315.  The models agree on
-how much energy is radiated and disagree on where it goes: with an all-particle
-thrust definition, photons carrying transverse momentum migrate events out of
-the two-jet endpoint differently from photons pinned to the beam axis.
+The new KKMCee 5 pair agrees with Anthony's digitized result of 1.166 within
+our 0.016 statistical error and with the four other ISR pairs.  The older
+KKMC 4.30 chain is the low outlier.  Reweighting its events moves the last-bin
+ratio only from 1.094 to 1.098; forcing all its ISR photons onto the beam
+leaves the result at 1.098.  The old 0.069 KKMC-to-PYTHIA gap therefore cannot
+be assigned as a radiation-model uncertainty.  The KKMC version, generator
+defaults, event weighting and hadronizer differ between the two KKMC chains;
+the current samples do not isolate one cause of the endpoint difference.
 
 Below `T = 0.97` every model including KKMC agrees within 1%.
 
@@ -578,9 +578,10 @@ Agreement is good through the bulk but drifts at the endpoint, in the same
 direction in the last two bins.  That is larger than statistics comfortably
 explains and is unresolved: the generation settings for their samples are not in
 that repository, so the Pythia version, tune, ISR-off switches and flavour
-selection cannot be compared.  This matters for the headline number, because
-measured against the correction actually in use the KKMC difference grows from
-0.073 +- 0.017 to 0.105 +- 0.019.
+selection cannot be compared.  The correction in use is `1.200 +- 0.011`,
+versus `1.167 +- 0.009` for our PYTHIA 8.315 pair and `1.153 +- 0.016` for
+our KKMCee 5 pair.  Its production settings still need to be recovered before
+interpreting the gap.
 
 ### 7.3 Two documentation problems in that repository, for its owner
 
@@ -594,17 +595,18 @@ measured against the correction actually in use the KKMC difference grows from
   without any transformation.  The computation looks right and the sentence
   looks wrong, but it should be reconciled so nobody applies the transformation.
 
-### 7.4 KKMC version: mislabelled, and not the newest release
+### 7.4 KKMC versions
 
 The banner of the built program reads `Version 4.30, October 2020`, not 4.24 as
 `configure.ac` suggests and as the first version of the deck claimed.  All
 labels are corrected to 4.30.
 
-The current release is **KKMCee v5.00.02**, a C++ rewrite.  Its release notes
+The second run uses **KKMCee v5.00.02**, a C++ rewrite.  Its release notes
 describe the rewrite, FOAM, HepMC3 output and speed, with no change of physics
 content, and the CPC paper states that 5.00 reproduces the Fortran benchmarks.
-The repository master branch carries only the Fortran tree, which is why 4.30 is
-what got built.  Repeating the measurement on v5.00.02 remains an open check.
+The first run built the older Fortran tree from repository master; the second
+uses the 5.00.02 release with external PYTHIA 8.316 hadronization.  Release
+tarballs are at <https://github.com/KrakowHEPSoft/KKMCee/releases>.
 
 CEEX was verified to be active for quarks rather than silently falling back to
 EEX: `KK2f/KK2f.f` gates it on `m_KeyGPS != 0 && SvarQ > MminCEEX^2` with
@@ -621,6 +623,56 @@ EEX: `KK2f/KK2f.f` gates it on `m_KeyGPS != 0 && SvarQ > MminCEEX^2` with
 - Each KKMC run directory's `pro.input` was checked against its own output
   banner and dump header, confirming that `KeyISR` and `KeyINT` are what the
   sample names claim.
+
+### 7.6 KKMCee 5.00.02 production and analysis
+
+The two run cards in `kkmcee5/pro.input.ISR_{OFF,ON}` differ only in
+`KeyISR=0/1`.  Both select hadronic `d,u,s,c,b` final states at 91.1876 GeV
+with `KeyGPS=1` (CEEX), `KeyFSR=1`, `KeyQSR=1`, `KeyINT=0`, `KeyWgt=0`, and
+`KeyHad=0`.  `kkmcee5/kkmcee5_dump.cxx` passes the quark pair to the same
+PYTHIA 8.316 QCD shower and hadronization setup in both states, with its QED
+shower off.  The KKMCee ISR and FSR photon four-vectors are retained in the
+final state and ISR photons are separately flagged by generator truth.
+Eight independent jobs of 125,000 generated events were used per state.
+The copied `KKMCee_defaults` and `DIZET-table1` files have identical SHA-256
+hashes in OFF and ON; the Pythia settings come from the same driver binary.
+
+Outputs are in `/raid5/data/yjlee/ISR/samples/kkmcee5_20261002`:
+
+| state | accepted events | ntuple | cross section reported by KKMCee |
+|---|---:|---|---:|
+| OFF | 1,000,000 | `mc_KKMCee50002_ISR_OFF.root` | 40.2948 nb |
+| ON | 999,993 | `mc_KKMCee50002_ISR_ON.root` | 29.6005 nb |
+
+Seven ON events were discarded after repeated PYTHIA hadronization failures;
+none were discarded in OFF.  Both ROOT ntuples passed validation with zero
+bad events.  The thrust correction histograms were normalized to their own
+accepted event counts.  Endpoint diagnostics trees are under
+`endpoint_diagnostics/`; the source CSVs and plots are under `results/`.
+
+In the nominal ALEPH thrust bin `0.99<T<1.00`, the new ratio is
+`1.15297 +- 0.01616` (OFF 10,959; ON 9,505 after normalization).  The
+digitized Anthony KKMCee 5.00.02 point is about 1.166, with approximately
+0.004 plot-reading precision and unknown statistical uncertainty.  The two
+values differ by 0.013, below our 0.016 statistical uncertainty.  The earlier
+KKMC 4.30 chain gives `1.09775 +- 0.01509` in the same definition and bin.
+
+The charged-EEC correction integrated over `z` is `1.003842 +- 0.000613`
+from the binned pair loop, against `1.003844` from an independent closed
+form.  The photon truth list carries 0.2074 GeV of ISR energy per ON event;
+the charged-energy-loss estimate is `0.174 +- 0.029` GeV.  The latter is
+1.1 standard deviations below truth.  The new source CSVs are merged with
+the six earlier pairs by `scripts/merge_kkmcee5_eec_results.py`, and
+`kkmcee5/finalize_kkmcee5_results.sh` regenerates the figures and tables.
+That finalization reads the prior full-statistics CSV products in
+`overleaf/results/kkmc/`; it does not reread the earlier ntuples.  The
+`/data2` filesystem returned I/O errors during this update.
+
+The old and new KKMC reported cross sections differ by roughly 2.5% in both
+ISR states, while the endpoint correction differs by 0.055.  The available
+samples do not isolate the source of that change.  A controlled test would
+feed the same KKMC quark and photon events into both hadronizers, and separately
+compare the two KKMC versions before hadronization at fixed settings.
 
 ## 8. References
 

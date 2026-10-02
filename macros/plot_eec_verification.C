@@ -67,10 +67,10 @@ void plot_eec_verification(const char* dir =
     // radiation, so its entry measures final-state radiation instead.
     const std::vector<std::string> order = {
         "Pythia 8.315", "Pythia 8.315 Vincia", "Sherpa 3.0.3 PDFESherpa",
-        "Sherpa 3.0.3 YFS", "KKMC 4.30 CEEX",
+        "Sherpa 3.0.3 YFS", "KKMC 4.30 CEEX", "KKMCee 5.00.02 + Pythia 8.316",
         "Herwig 7.3.0 QED shower, ISR unchanged"};
     const std::vector<std::string> shortName = {
-        "Pythia", "Vincia", "Sherpa", "Sherpa YFS", "KKMC", "Herwig*"};
+        "Pythia", "Vincia", "Sherpa", "Sherpa YFS", "KKMC 4.30", "KKMCee 5", "Herwig*"};
 
     std::map<std::string, std::vector<std::string>> ver, sumOff, sumOn;
     for (const auto& r : readCsv(std::string(dir) + "/eec_verification.csv"))
@@ -82,7 +82,7 @@ void plot_eec_verification(const char* dir =
     const int n = static_cast<int>(order.size());
     std::vector<double> x(n), meas(n), measErr(n), pred(n), ebc(n), ech(n),
         echErr(n), zero(n, 0.0);
-    double kkmcTruth = 0;
+    double kkmcTruth = 0, kkmcee5Truth = 0;
     for (int i = 0; i < n; ++i) {
         x[i] = i + 0.36;
         const auto& v = ver[order[i]];
@@ -95,6 +95,8 @@ void plot_eec_verification(const char* dir =
             ebc[i] = std::stod(sumOn[order[i]][6]) - std::stod(sumOff[order[i]][6]);
         if (order[i] == "KKMC 4.30 CEEX" && sumOn.count(order[i]))
             kkmcTruth = std::stod(sumOn[order[i]][7]);
+        if (order[i] == "KKMCee 5.00.02 + Pythia 8.316" && sumOn.count(order[i]))
+            kkmcee5Truth = std::stod(sumOn[order[i]][7]);
     }
 
     TCanvas* c = new TCanvas("c_ver", "", 1500, 620);
@@ -134,7 +136,7 @@ void plot_eec_verification(const char* dir =
     t1.SetNDC(); t1.SetTextFont(42); t1.SetTextSize(0.046);
     t1.DrawLatex(0.13, 0.925, "Charged-EEC ISR correction, all z");
     t1.SetTextSize(0.036); t1.SetTextColor(kGray + 2);
-    t1.DrawLatex(0.17, 0.66, "agree to 0.04-0.13 per mille, all six");
+    t1.DrawLatex(0.17, 0.20, "energy-loss prediction agrees for all seven pairs");
 
     // ------------------------------------------------------------ right panel
     c->cd(2);
@@ -167,6 +169,12 @@ void plot_eec_verification(const char* dir =
         gt->SetLineColor(kRed + 1);
         gt->SetLineWidth(3);
         gt->Draw("SAME");
+    }
+    if (kkmcee5Truth > 0) {
+        TLine* gt5 = new TLine(5.08, kkmcee5Truth, 5.92, kkmcee5Truth);
+        gt5->SetLineColor(kRed + 1);
+        gt5->SetLineWidth(3);
+        gt5->Draw("SAME");
     }
 
     TLegend* l2 = new TLegend(0.19, 0.70, 0.78, 0.88);

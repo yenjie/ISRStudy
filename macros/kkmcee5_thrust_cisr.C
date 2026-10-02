@@ -1,8 +1,7 @@
 // Thrust ISR correction for the KKMCee 5.00.02 sample, per ALEPH bin and per
 // stored thrust definition, from its EndpointDiagnostics trees.  Writes rows
 // in the same layout as isr_model_cisr_thrust_bins.csv so the two can be
-// compared directly, and prints the last bin by definition next to the KKMC
-// 4.30 and Anthony numbers.
+// compared directly.  The last bin of each definition is printed as a check.
 //
 // Usage:
 //   root -l -b -q 'macros/kkmcee5_thrust_cisr.C("<diag dir>", "<out dir>")'
@@ -62,6 +61,13 @@ void kkmcee5_thrust_cisr(const char* diagDir = "/raid5/data/yjlee/ISR/samples/kk
     auto on = fillAll(std::string(diagDir) + "/endpoint_diagnostics_KKMCee50002_ISR_ON.root", "on");
     if (off.empty() || on.empty()) return;
 
+    // Seven ON events failed hadronization.  Put both spectra on the same
+    // accepted-event exposure before forming the shape ratio.
+    const double nOff = off.at("B")->GetEntries();
+    const double nOn = on.at("B")->GetEntries();
+    if (nOff <= 0 || nOn <= 0) return;
+    for (auto& kv : on) kv.second->Scale(nOff / nOn);
+
     std::ofstream csv(std::string(outDir) + "/isr_model_cisr_thrust_bins_kkmcee5.csv");
     csv << std::setprecision(8);
     csv << "sample,definition,T_low,T_high,tau_low,tau_high,n_off,n_on,c_isr,c_isr_err\n";
@@ -81,9 +87,5 @@ void kkmcee5_thrust_cisr(const char* diagDir = "/raid5/data/yjlee/ISR/samples/kk
         }
     }
     csv.close();
-    printf("\n  reference, same bin, definition B: KKMC 4.30 + Pythia 6.202  1.098 +- 0.015\n");
-    printf("                                     Anthony KKMCee 5.00.02    1.166 (read off plot)\n");
-    printf("                                     Pythia 8.315 / Vincia      1.167 / 1.170\n");
-    printf("                                     Sherpa 3.0.3 PDFE / YFS    1.149 / 1.140\n");
     std::cout << "[done] " << outDir << "/isr_model_cisr_thrust_bins_kkmcee5.csv" << std::endl;
 }

@@ -37,6 +37,7 @@ ROWS = [
     ("Sherpa 3.0.3 PDFESherpa", "Sherpa 3.0.3 PDFESherpa"),
     ("Sherpa 3.0.3 YFS", "Sherpa 3.0.3 YFS"),
     ("KKMC 4.30 CEEX", "KKMC 4.30 CEEX"),
+    ("KKMCee 5.00.02 + Pythia 8.316", "KKMCee 5.00.02 + Pythia 8.316"),
     ("Herwig 7.3.0 QED shower, ISR unchanged", "Herwig 7.3.0 QED shower"),
 ]
 

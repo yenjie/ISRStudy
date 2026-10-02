@@ -45,6 +45,8 @@ namespace {
 
 const char* kRealNtup = "/data2/yjlee/ISRsample/real_3M_20260511";
 const char* kKkmcNtup = "/data2/yjlee/ISRsample/kkmc_1M_20260921";
+const char* kKkmcee5Ntup = gSystem->Getenv("KKMCEE5_OUT") ?
+    gSystem->Getenv("KKMCEE5_OUT") : "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002";
 
 constexpr int kHalfAngleBins = 100;
 constexpr int kAngleBins = 2 * kHalfAngleBins;
@@ -257,8 +259,8 @@ void plot_eec_isr_correction(const char* outDir =
          std::string(kRealNtup) + "/mc_Herwig730_QEDshower.root", kOrange + 7, 22},
         {"KKMC 4.30 CEEX", std::string(kKkmcNtup) + "/mc_KKMC424_ISR_OFF.root",
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_ON.root", kRed + 1, 29},
-        {"KKMCee 5.00.02 + Pythia 8.316", "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_OFF.root",
-         "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_ON.root", kMagenta + 2, 33},
+        {"KKMCee 5.00.02 + Pythia 8.316", std::string(kKkmcee5Ntup) + "/mc_KKMCee50002_ISR_OFF.root",
+         std::string(kKkmcee5Ntup) + "/mc_KKMCee50002_ISR_ON.root", kMagenta + 2, 33},
     };
 
     if (sampleIndex >= 0) {

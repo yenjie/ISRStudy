@@ -65,7 +65,7 @@ void plot_cisr_tau_kkmcee5(
         {"Sherpa 3.0.3 YFS", "Sherpa 3.0.3 YFS", kAzure + 7, 25, 0.0006},
         {"Herwig 7.3.0 QED shower, ISR unchanged", "Herwig 7.3.0 (pair does not switch ISR)", kOrange + 7, 22, 0.0018},
         {"KKMC 4.30 CEEX", "KKMC 4.30 CEEX + Pythia 6.202", kRed + 1, 29, 0.0030},
-        {"KKMCee 5.00.02 + Pythia 8.316", "KKMCee 5.00.02 CEEX + Pythia 8.316 (new)", kMagenta + 2, 33, 0.0042},
+        {"KKMCee 5.00.02 + Pythia 8.316", "KKMCee 5.00.02 CEEX + Pythia 8.316", kMagenta + 2, 33, 0.0042},
     };
     std::map<std::string, TGraphErrors*> g;
     for (const auto& s : styles) {
@@ -135,7 +135,7 @@ void plot_cisr_tau_kkmcee5(
         for (const auto& s : styles) if (g.count(s.label)) leg->AddEntry(g[s.label], s.legend.c_str(), "p");
         if (ga) leg->AddEntry(ga, "ALEPH analysis Pythia8, in use", "p");
         if (anthony.count("KKMCee 5.00.02")) leg->AddEntry(anthony["KKMCee 5.00.02"], "Anthony: KKMCee 5.00.02", "p");
-        if (anthony.count("collinear models")) leg->AddEntry(anthony["collinear models"], "Anthony: mean of his 4 collinear models", "p");
+        if (anthony.count("collinear models")) leg->AddEntry(anthony["collinear models"], "Anthony: mean of his 4 non-KKMC models", "p");
         leg->Draw();
     };
     panel(pL, 0.42, 0.75, 1.25, "Full range, Anthony's axes", false);
@@ -145,5 +145,59 @@ void plot_cisr_tau_kkmcee5(
     tf.DrawLatex(0.985, 0.972, "ISR study, work in progress.  ALEPH thrust definition, ALEPH bins, stat. bars.  Anthony's values read off his plot, #pm0.004");
     c1->SaveAs(Form("%s/isr_model_cisr_tau_with_kkmcee5.png", outDir));
     c1->SaveAs(Form("%s/isr_model_cisr_tau_with_kkmcee5.pdf", outDir));
-    std::cout << "[done] " << outDir << "/isr_model_cisr_tau_with_kkmcee5.png" << std::endl;
+
+    TCanvas* cT = new TCanvas("c_thrust5", "", 1000, 760);
+    cT->SetLeftMargin(0.13); cT->SetRightMargin(0.04);
+    cT->SetTopMargin(0.09); cT->SetBottomMargin(0.13); cT->SetTicks(1, 1);
+    TH1D* ft = new TH1D("fr_thrust5", "", 1, 0.70, 1.00);
+    ft->SetMinimum(0.92); ft->SetMaximum(1.27);
+    ft->GetXaxis()->SetTitle("Thrust T");
+    ft->GetYaxis()->SetTitle("C_{ISR} = N_{ISR OFF} / N_{ISR ON}");
+    ft->GetXaxis()->SetTitleSize(0.050); ft->GetYaxis()->SetTitleSize(0.050);
+    ft->GetXaxis()->SetLabelSize(0.043); ft->GetYaxis()->SetLabelSize(0.043);
+    ft->GetYaxis()->SetTitleOffset(1.25);
+    ft->Draw();
+    TLine* oneT = new TLine(0.70, 1.0, 1.0, 1.0);
+    oneT->SetLineStyle(2); oneT->SetLineColor(kGray + 1); oneT->Draw();
+    TLegend* lt = new TLegend(0.17, 0.50, 0.78, 0.88);
+    lt->SetBorderSize(0); lt->SetFillStyle(0); lt->SetTextSize(0.029);
+    for (const auto& s : styles) {
+        if (!g.count(s.label)) continue;
+        std::vector<double> x, y, ex, ey;
+        TGraphErrors* src = g[s.label];
+        for (int i = 0; i < src->GetN(); ++i) {
+            double tau, c; src->GetPoint(i, tau, c);
+            const double thrust = 1.0 - tau;
+            if (thrust < 0.70 || thrust > 1.00) continue;
+            x.push_back(thrust); y.push_back(c);
+            ex.push_back(0.0); ey.push_back(src->GetErrorY(i));
+        }
+        if (x.empty()) continue;
+        TGraphErrors* gr = new TGraphErrors(static_cast<int>(x.size()), &x[0], &y[0], &ex[0], &ey[0]);
+        gr->SetLineColor(s.color); gr->SetMarkerColor(s.color);
+        gr->SetMarkerStyle(s.marker); gr->SetMarkerSize(s.marker == 33 ? 1.2 : 0.75);
+        gr->SetLineWidth(1); gr->Draw("PL SAME");
+        lt->AddEntry(gr, s.legend.c_str(), "lp");
+    }
+    if (ga) {
+        std::vector<double> x, y;
+        for (int i = 0; i < ga->GetN(); ++i) {
+            double tau, c; ga->GetPoint(i, tau, c);
+            if (1.0 - tau < 0.70) continue;
+            x.push_back(1.0 - tau); y.push_back(c);
+        }
+        if (!x.empty()) {
+            TGraph* gAleph = new TGraph(static_cast<int>(x.size()), &x[0], &y[0]);
+            gAleph->SetLineColor(kGreen + 2); gAleph->SetMarkerColor(kGreen + 2);
+            gAleph->SetMarkerStyle(34); gAleph->SetMarkerSize(1.1);
+            gAleph->SetLineWidth(1); gAleph->Draw("PL SAME");
+            lt->AddEntry(gAleph, "ALEPH analysis Pythia8 (in use)", "lp");
+        }
+    }
+    lt->Draw();
+    TLatex tT; tT.SetNDC(); tT.SetTextFont(42); tT.SetTextSize(0.030);
+    tT.DrawLatex(0.13, 0.955, "ALEPH visible-particle thrust, #sqrt{s} = 91.1876 GeV");
+    cT->SaveAs(Form("%s/isr_model_cisr_thrust_with_kkmcee5.png", outDir));
+    cT->SaveAs(Form("%s/isr_model_cisr_thrust_with_kkmcee5.pdf", outDir));
+    std::cout << "[done] thrust and tau figures in " << outDir << std::endl;
 }
