@@ -257,6 +257,8 @@ void plot_eec_isr_correction(const char* outDir =
          std::string(kRealNtup) + "/mc_Herwig730_QEDshower.root", kOrange + 7, 22},
         {"KKMC 4.30 CEEX", std::string(kKkmcNtup) + "/mc_KKMC424_ISR_OFF.root",
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_ON.root", kRed + 1, 29},
+        {"KKMCee 5.00.02 + Pythia 8.316", "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_OFF.root",
+         "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_ON.root", kMagenta + 2, 33},
     };
 
     if (sampleIndex >= 0) {

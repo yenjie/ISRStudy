@@ -130,6 +130,8 @@ void verify_eec_isr_correction(const char* outDir =
          std::string(kRealNtup) + "/mc_Herwig730_QEDshower.root"},
         {"KKMC 4.30 CEEX", std::string(kKkmcNtup) + "/mc_KKMC424_ISR_OFF.root",
          std::string(kKkmcNtup) + "/mc_KKMC424_ISR_ON.root"},
+        {"KKMCee 5.00.02 + Pythia 8.316", "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_OFF.root",
+         "/raid5/data/yjlee/ISR/samples/kkmcee5_20261002/mc_KKMCee50002_ISR_ON.root"},
     };
     if (sampleIndex >= 0) {
         if (sampleIndex >= static_cast<int>(samples.size())) return;

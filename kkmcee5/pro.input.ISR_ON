@@ -1,0 +1,20 @@
+********************** KKMCee 5.00.02, ISR study, Z pole, hadronic, ISR ON ****
+BeginX
+    1      91.1876e0      CMSene =xpar( 1) Center of mass energy [GeV]
+    2        0.000e0      DelEne =xpar( 2) Beam energy spread [GeV]
+   10              0      KeyWgt=xpar(10) constant weight events
+   50              0      KeyHad=xpar(50) no internal hadronisation; Pythia 8 outside
+  401              1      KFfin, d
+  402              1      KFfin, u
+  403              1      KFfin, s
+  404              1      KFfin, c
+  405              1      KFfin, b
+   20              1      KeyISR=xpar(20)  beam ISR
+   21              1      KeyFSR=xpar(21)  final-state radiation, same in all modes
+   27              0      KeyINT=xpar(27)  ISR-FSR interference, as in the 4.30 runs
+   28              1      KeyGPS=xpar(28)  CEEX exponentiation
+   29              1      KeyQSR=xpar(29)  photon emission from final quarks
+    5              0      LevPri =xpar( 5)  PrintOut Level
+    6              1      Ie1Pri =xpar( 6)
+    7              0      Ie2Pri =xpar( 7)
+EndX
