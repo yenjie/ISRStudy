@@ -52,6 +52,7 @@ struct PassOne {
     double eIsrTruth = -1;   // KKMC only: generator's own ISR photon energy
     double mVis = 0;         // mass excluding neutrinos and beam-collinear photons
     Long64_t entries = 0;
+    double sumW = 0;         // sum of event weights; KKMC ISR off is weighted
     TH1D* hBeamCol = nullptr;   // per-event beam-collinear photon energy
     TH1D* hIsrTruth = nullptr;  // KKMC only: per-event generator ISR photon energy
 };
@@ -98,6 +99,10 @@ PassOne scanEvents(const std::string& path, Long64_t maxEvents, const std::strin
     t->SetBranchAddress("py", &py);
     t->SetBranchAddress("pz", &pz);
     t->SetBranchAddress("energy", &en);
+    double weight = 1.0;
+    t->SetBranchAddress("weight", &weight);
+    r.hBeamCol->Sumw2();
+    r.hIsrTruth->Sumw2();
 
     const bool isKkmc = path.find("KKMC") != std::string::npos;
     Long64_t n = t->GetEntries();
@@ -106,6 +111,7 @@ PassOne scanEvents(const std::string& path, Long64_t maxEvents, const std::strin
 
     for (Long64_t i = 0; i < n; ++i) {
         t->GetEntry(i);
+        const double w = weight;
         double E = 0, PX = 0, PY = 0, PZ = 0;
         double eBeamColEvt = 0, eIsrTruthEvt = 0;
         for (size_t j = 0; j < pdg->size(); ++j) {
@@ -115,16 +121,16 @@ PassOne scanEvents(const std::string& path, Long64_t maxEvents, const std::strin
             const double absCos = p > 0 ? std::fabs((*pz)[j] / p) : 0.0;
             const bool beamCol = ((*pdg)[j] == 22 && absCos > kBeamCollinearCos);
             if ((*pdg)[j] == 22) {
-                r.nGamma += 1;
-                r.eGamma += (*en)[j];
+                r.nGamma += w;
+                r.eGamma += w * (*en)[j];
             }
             if (beamCol) {
-                r.nBeamCol += 1;
-                r.eBeamCol += (*en)[j];
+                r.nBeamCol += w;
+                r.eBeamCol += w * (*en)[j];
                 eBeamColEvt += (*en)[j];
             }
             if (isKkmc && (*isIsr)[j]) {
-                eIsrTruth += (*en)[j];
+                eIsrTruth += w * (*en)[j];
                 eIsrTruthEvt += (*en)[j];
             }
             if (!isNeutrino((*pdg)[j]) && !beamCol) {
@@ -135,18 +141,19 @@ PassOne scanEvents(const std::string& path, Long64_t maxEvents, const std::strin
             }
         }
         const double m2 = E * E - PX * PX - PY * PY - PZ * PZ;
-        r.mVis += m2 > 0 ? std::sqrt(m2) : 0.0;
-        r.hBeamCol->Fill(eBeamColEvt);
-        if (isKkmc) r.hIsrTruth->Fill(eIsrTruthEvt);
+        r.mVis += w * (m2 > 0 ? std::sqrt(m2) : 0.0);
+        r.hBeamCol->Fill(eBeamColEvt, w);
+        if (isKkmc) r.hIsrTruth->Fill(eIsrTruthEvt, w);
+        r.sumW += w;
     }
     r.entries = n;
-    if (n > 0) {
-        r.nGamma /= n;
-        r.eGamma /= n;
-        r.nBeamCol /= n;
-        r.eBeamCol /= n;
-        r.mVis /= n;
-        if (isKkmc) r.eIsrTruth = eIsrTruth / n;
+    if (r.sumW > 0) {
+        r.nGamma /= r.sumW;
+        r.eGamma /= r.sumW;
+        r.nBeamCol /= r.sumW;
+        r.eBeamCol /= r.sumW;
+        r.mVis /= r.sumW;
+        if (isKkmc) r.eIsrTruth = eIsrTruth / r.sumW;
     }
     f->Close();
     return r;
@@ -175,17 +182,19 @@ TH1D* thrustHist(const std::string& path, const std::string& name,
     // was verified to reproduce the `tgenBefore/thrust` branch of
     // ALEPH_Agentic_Event_Shape_Analysis to 1.5e-8 over 3000 events, so the
     // correction here is for the same observable that analysis corrects.
-    double thrust = 0.0;
+    // The KKMC ISR off sample carries per-event weights (mean 1.18, flat in
+    // thrust); the others have unit weights.  Fill weighted, errors by Sumw2.
+    double thrust = 0.0, weight = 1.0;
     t->SetBranchStatus("*", 0);
     t->SetBranchStatus("T_lab_including_ISR_photons", 1);
+    t->SetBranchStatus("event_weight", 1);
     t->SetBranchAddress("T_lab_including_ISR_photons", &thrust);
+    t->SetBranchAddress("event_weight", &weight);
+    h->Sumw2();
     const Long64_t n = t->GetEntries();
     for (Long64_t i = 0; i < n; ++i) {
         t->GetEntry(i);
-        h->Fill(thrust);
-    }
-    for (int b = 1; b <= h->GetNbinsX(); ++b) {
-        h->SetBinError(b, std::sqrt(std::max(0.0, h->GetBinContent(b))));
+        h->Fill(thrust, weight);
     }
     std::cout << "  [thrust] " << name << " entries " << n << std::endl;
     f->Close();
@@ -202,10 +211,11 @@ TGraphErrors* ratioGraph(TH1D* off, TH1D* on, double xShift)
         const double nOn = on->GetBinContent(b);
         if (nOff < 1 || nOn < 1) continue;
         const double r = nOff / nOn;
+        const double eOff = off->GetBinError(b), eOn = on->GetBinError(b);
         x.push_back(off->GetBinCenter(b) + xShift);
         y.push_back(r);
         ex.push_back(0.0);
-        ey.push_back(r * std::sqrt(1.0 / nOff + 1.0 / nOn));
+        ey.push_back(r * std::sqrt((eOff / nOff) * (eOff / nOff) + (eOn / nOn) * (eOn / nOn)));
     }
     if (x.empty()) return nullptr;
     TGraphErrors* g = new TGraphErrors(static_cast<int>(x.size()), &x[0], &y[0], &ex[0], &ey[0]);
@@ -511,9 +521,10 @@ void plot_isr_model_comparison(const char* outDir =
         const int nb = off->GetNbinsX();
         const double nOff = off->GetBinContent(nb);
         const double nOn = on->GetBinContent(nb);
+        const double eOff = off->GetBinError(nb), eOn = on->GetBinError(nb);
         const double r = (nOn > 0) ? nOff / nOn : 0.0;
         const double er = (nOff > 0 && nOn > 0)
-                              ? r * std::sqrt(1.0 / nOff + 1.0 / nOn)
+                              ? r * std::sqrt((eOff / nOff) * (eOff / nOff) + (eOn / nOn) * (eOn / nOn))
                               : 0.0;
         tab << "\"" << samples[i].label << "\","
             << (samples[i].genuineIsrToggle ? "yes" : "no") << ","

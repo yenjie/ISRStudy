@@ -97,13 +97,30 @@ const char* kRegName[kNReg] = {
 const double kRegLo[kNReg] = {0.0, 1e-3, 0.1, 0.9, 0.999, 0.0};
 const double kRegHi[kNReg] = {1e-3, 0.1, 0.9, 0.999, 1.0, 1.0};
 
+// Weighted accumulators for a mean and its uncertainty.  The KKMC ISR off sample
+// carries per-event weights (mean 1.18, flat in every observable looked at),
+// the other samples have unit weights, so the same code serves both.  With
+// m = A/W the variance of the weighted mean is (B - 2mC + m^2 D) / W^2.
+struct Acc {
+    std::vector<double> A, B, C, D;   // sum w e, sum w^2 e^2, sum w^2 e, sum w^2
+    void init(int n) { A.assign(n, 0); B.assign(n, 0); C.assign(n, 0); D.assign(n, 0); }
+    void add(int i, double e, double w) {
+        A[i] += w * e; B[i] += w * w * e * e; C[i] += w * w * e; D[i] += w * w;
+    }
+    void meanErr(int i, double W, double& m, double& err) const {
+        m = W > 0 ? A[i] / W : 0;
+        const double v = B[i] - 2 * m * C[i] + m * m * D[i];
+        err = (W > 0 && v > 0) ? std::sqrt(v) / W : 0;
+    }
+};
+
 struct EecResult {
-    std::vector<double> sumW;    // sum over events of the per-event EEC
-    std::vector<double> sumW2;   // sum of squares of the per-event EEC
+    Acc bins;     // per-bin per-event EEC
     // Region sums are accumulated PER EVENT and only then squared, so the
     // uncertainty on a region accounts for the correlation between the bins
     // inside it.  Adding the per-bin errors in quadrature would not.
-    std::vector<double> regW, regW2;
+    Acc regions;
+    double sumWeights = 0;
     Long64_t events = 0;
     bool ok = false;
 };
@@ -112,10 +129,8 @@ struct EecResult {
 EecResult buildEec(const std::string& path, Long64_t maxEvents)
 {
     EecResult r;
-    r.sumW.assign(kAngleBins, 0.0);
-    r.sumW2.assign(kAngleBins, 0.0);
-    r.regW.assign(kNReg, 0.0);
-    r.regW2.assign(kNReg, 0.0);
+    r.bins.init(kAngleBins);
+    r.regions.init(kNReg);
 
     TFile* f = TFile::Open(path.c_str());
     if (!f || f->IsZombie()) { std::cerr << "  [skip] cannot open " << path << std::endl; return r; }
@@ -124,9 +139,11 @@ EecResult buildEec(const std::string& path, Long64_t maxEvents)
 
     std::vector<char>* isFinal = nullptr;
     std::vector<float>*px = nullptr, *py = nullptr, *pz = nullptr, *en = nullptr, *ch = nullptr;
+    double weight = 1.0;
     t->SetBranchStatus("*", 0);
-    for (const char* b : {"isFinal", "px", "py", "pz", "energy", "charge"})
+    for (const char* b : {"isFinal", "px", "py", "pz", "energy", "charge", "weight"})
         t->SetBranchStatus(b, 1);
+    t->SetBranchAddress("weight", &weight);
     t->SetBranchAddress("isFinal", &isFinal);
     t->SetBranchAddress("px", &px);
     t->SetBranchAddress("py", &py);
@@ -176,33 +193,29 @@ EecResult buildEec(const std::string& path, Long64_t maxEvents)
             }
         }
         std::fill(evtReg.begin(), evtReg.end(), 0.0);
+        const double w = weight;
         for (int b = 0; b < kAngleBins; ++b) {
-            r.sumW[b] += evt[b];
-            r.sumW2[b] += evt[b] * evt[b];
+            r.bins.add(b, evt[b], w);
             for (int g : binReg[b]) evtReg[g] += evt[b];
         }
-        for (int g = 0; g < kNReg; ++g) {
-            r.regW[g] += evtReg[g];
-            r.regW2[g] += evtReg[g] * evtReg[g];
-        }
+        for (int g = 0; g < kNReg; ++g) r.regions.add(g, evtReg[g], w);
+        r.sumWeights += w;
         ++r.events;
         if ((i + 1) % 500000 == 0) std::cout << "    " << i + 1 << "/" << n << std::endl;
     }
     f->Close();
     r.ok = r.events > 0;
-    std::cout << "  [eec] " << path << "  events " << r.events << std::endl;
+    std::cout << "  [eec] " << path << "  events " << r.events
+              << "  sum of weights " << r.sumWeights << std::endl;
     return r;
 }
 
-// Mean per-event EEC in a bin and the uncertainty on that mean.
+// Weighted mean per-event EEC in a bin and the uncertainty on that mean.
 void meanAndError(const EecResult& r, int b, double& mean, double& err)
 {
     mean = err = 0;
     if (!r.ok) return;
-    const double n = static_cast<double>(r.events);
-    mean = r.sumW[b] / n;
-    const double var = r.sumW2[b] / n - mean * mean;
-    err = var > 0 ? std::sqrt(var / n) : 0.0;
+    r.bins.meanErr(b, r.sumWeights, mean, err);
 }
 
 // Same, for a region.
@@ -210,10 +223,7 @@ void regionMeanAndError(const EecResult& r, int g, double& mean, double& err)
 {
     mean = err = 0;
     if (!r.ok) return;
-    const double n = static_cast<double>(r.events);
-    mean = r.regW[g] / n;
-    const double var = r.regW2[g] / n - mean * mean;
-    err = var > 0 ? std::sqrt(var / n) : 0.0;
+    r.regions.meanErr(g, r.sumWeights, mean, err);
 }
 
 }  // namespace

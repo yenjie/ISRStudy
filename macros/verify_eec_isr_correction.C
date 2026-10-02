@@ -32,14 +32,23 @@ const char* kRealNtup = "/data2/yjlee/ISRsample/real_3M_20260511";
 const char* kKkmcNtup = "/data2/yjlee/ISRsample/kkmc_1M_20260921";
 constexpr double kSqrtS = 91.1876;
 
+// Weighted means: m = A/W, var(m) = (B - 2mC + m^2 D) / W^2 with
+// A = sum w e, B = sum w^2 e^2, C = sum w^2 e, D = sum w^2.  The KKMC ISR off
+// sample is weighted (mean 1.18); the others have unit weights.
+struct WMean {
+    double A = 0, B = 0, C = 0, D = 0;
+    void add(double e, double w) { A += w * e; B += w * w * e * e; C += w * w * e; D += w * w; }
+    double mean(double W) const { return W > 0 ? A / W : 0; }
+    double err(double W) const { const double m = mean(W), v = B - 2 * m * C + m * m * D;
+                                 return (W > 0 && v > 0) ? std::sqrt(v) / W : 0; }
+};
+
 struct Scan {
     Long64_t events = 0;
-    double sumE = 0, sumE2 = 0;   // sum over events of (sum_i E_i) and sum_i E_i^2
-    double sumSE2 = 0;            // sum over events of (sum_i E_i)^2, for its variance
+    double sumW = 0;
+    WMean sumE, eec;              // per-event charged energy and exact EEC
     double nch = 0;
-    double eec = 0, eec2 = 0;     // per-event exact EEC and its square
-    double eecHalf[2] = {0, 0};
-    Long64_t evHalf[2] = {0, 0};
+    double eecHalf[2] = {0, 0}, wHalf[2] = {0, 0};
     bool ok = false;
 };
 
@@ -53,9 +62,11 @@ Scan scan(const std::string& path, Long64_t maxEvents)
 
     std::vector<char>* isFinal = nullptr;
     std::vector<float>*px = nullptr, *py = nullptr, *pz = nullptr, *en = nullptr, *ch = nullptr;
+    double weight = 1.0;
     t->SetBranchStatus("*", 0);
-    for (const char* b : {"isFinal", "px", "py", "pz", "energy", "charge"})
+    for (const char* b : {"isFinal", "px", "py", "pz", "energy", "charge", "weight"})
         t->SetBranchStatus(b, 1);
+    t->SetBranchAddress("weight", &weight);
     t->SetBranchAddress("isFinal", &isFinal);
     t->SetBranchAddress("px", &px);
     t->SetBranchAddress("py", &py);
@@ -80,10 +91,10 @@ Scan scan(const std::string& path, Long64_t maxEvents)
             ++nc;
         }
         const double eec = (sE * sE - sE2) / (2.0 * kSqrtS * kSqrtS);
-        r.sumE += sE; r.sumE2 += sE2; r.sumSE2 += sE * sE; r.nch += nc;
-        r.eec += eec; r.eec2 += eec * eec;
+        const double w = weight;
+        r.sumE.add(sE, w); r.eec.add(eec, w); r.nch += w * nc; r.sumW += w;
         const int h = (i < n / 2) ? 0 : 1;
-        r.eecHalf[h] += eec; r.evHalf[h]++;
+        r.eecHalf[h] += w * eec; r.wHalf[h] += w;
         ++r.events;
     }
     f->Close();
@@ -93,10 +104,8 @@ Scan scan(const std::string& path, Long64_t maxEvents)
 
 void meanErr(const Scan& s, double& m, double& e)
 {
-    const double n = static_cast<double>(s.events);
-    m = s.eec / n;
-    const double var = s.eec2 / n - m * m;
-    e = var > 0 ? std::sqrt(var / n) : 0.0;
+    m = s.eec.mean(s.sumW);
+    e = s.eec.err(s.sumW);
 }
 
 }  // namespace
@@ -140,14 +149,12 @@ void verify_eec_isr_correction(const char* outDir =
         Scan on = scan(s.on, maxEvents);
         if (!off.ok || !on.ok) continue;
 
-        const double nOff = off.events, nOn = on.events;
-        const double eOff = off.sumE / nOff, eOn = on.sumE / nOn;
+        const double nOff = off.sumW, nOn = on.sumW;   // sums of weights
+        const double eOff = off.sumE.mean(nOff), eOn = on.sumE.mean(nOn);
         const double delta = (eOff - eOn) / eOff;
         // Statistical error on delta from the spread of the per-event charged
         // energy; the two states are independent samples.
-        const double vOff = off.sumSE2 / nOff - eOff * eOff;
-        const double vOn = on.sumSE2 / nOn - eOn * eOn;
-        const double sOffE = std::sqrt(vOff / nOff), sOnE = std::sqrt(vOn / nOn);
+        const double sOffE = off.sumE.err(nOff), sOnE = on.sumE.err(nOn);
         const double deltaErr = (eOn / eOff) *
             std::sqrt((sOffE / eOff) * (sOffE / eOff) + (sOnE / eOn) * (sOnE / eOn));
         double mo, so, mn, sn;
@@ -157,8 +164,8 @@ void verify_eec_isr_correction(const char* outDir =
         const double er = r * std::sqrt((so / mo) * (so / mo) + (sn / mn) * (sn / mn));
         const double pred = 1.0 / ((1.0 - delta) * (1.0 - delta));
 
-        const double ho = off.eecHalf[0] / off.evHalf[0] - off.eecHalf[1] / off.evHalf[1];
-        const double hn = on.eecHalf[0] / on.evHalf[0] - on.eecHalf[1] / on.evHalf[1];
+        const double ho = off.eecHalf[0] / off.wHalf[0] - off.eecHalf[1] / off.wHalf[1];
+        const double hn = on.eecHalf[0] / on.wHalf[0] - on.eecHalf[1] / on.wHalf[1];
 
         printf("  events        %lld / %lld\n", off.events, on.events);
         printf("  <N_ch>        %.3f (off)  %.3f (on)\n", off.nch / nOff, on.nch / nOn);
